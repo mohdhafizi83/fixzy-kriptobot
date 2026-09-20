@@ -1,0 +1,17 @@
+[Unit]
+Description=Fixzy Kriptobot Trading Daemon
+After=network.target
+
+[Service]
+Type=simple
+User=fizi
+WorkingDirectory=/home/fizi/projects/kriptobot
+ExecStart=/home/fizi/projects/kriptobot/bin/php_sqlite.sh /home/fizi/projects/kriptobot/bin/bot_daemon.php
+ExecStartPre=/bin/rm -f /home/fizi/projects/kriptobot/bin/bot_daemon.lock
+Restart=always
+RestartSec=10
+StandardOutput=append:/home/fizi/projects/kriptobot/storage/logs/daemon.log
+StandardError=append:/home/fizi/projects/kriptobot/storage/logs/daemon.log
+
+[Install]
+WantedBy=multi-user.target

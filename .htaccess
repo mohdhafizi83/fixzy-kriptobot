@@ -1,0 +1,32 @@
+# Fixzy Kriptobot — PROJECT ROOT .htaccess (defence-in-depth)
+#
+# RECOMMENDED: point your hosting document root at the public/ directory.
+# This file protects you anyway if the document root accidentally points at
+# the project root: all traffic is rewritten into public/, and everything
+# else is denied.
+
+Options -Indexes
+
+# ── 1. If mod_rewrite is available: funnel everything into public/ ────────────
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Already inside public/ → serve as-is.
+    RewriteCond %{REQUEST_URI} ^/public/
+    RewriteRule ^ - [L]
+
+    # Everything else → public/
+    RewriteRule ^(.*)$ public/$1 [L]
+</IfModule>
+
+# ── 2. Belt-and-braces: explicitly deny sensitive directories ─────────────────
+# (Covers hosts without mod_rewrite, and direct-path edge cases.)
+RedirectMatch 404 ^/(src|vendor|bin|database|storage|tests|to_delete)(/|$)
+
+# ── 3. Block dotfiles and sensitive extensions at root ────────────────────────
+<FilesMatch "^\.">
+    Require all denied
+</FilesMatch>
+<FilesMatch "\.(env|sqlite|sqlite3|db|log|ini|lock|bak|swp|sh)$">
+    Require all denied
+</FilesMatch>

@@ -1,0 +1,181 @@
+#!/usr/bin/env php
+<?php
+/**
+ * kriptobot-tui — Simple Live Dashboard
+ * Auto-refresh every 5 seconds. Ctrl+C to quit.
+ * All info is displayed — no buttons needed.
+ */
+require_once __DIR__ . '/../src/bootstrap.php';
+
+use Fixzy\Kriptobot\Database\Database;
+use Fixzy\Kriptobot\Config\Config;
+
+function cls(): void { echo "\033[2J\033[H"; }
+function hide_cursor(): void { echo "\033[?25l"; }
+function show_cursor(): void { echo "\033[?25h"; }
+function green(string $s): string  { return "\033[32m{$s}\033[0m"; }
+function red(string $s): string    { return "\033[31m{$s}\033[0m"; }
+function yellow(string $s): string { return "\033[33m{$s}\033[0m"; }
+function cyan(string $s): string   { return "\033[36m{$s}\033[0m"; }
+function bold(string $s): string   { return "\033[1m{$s}\033[0m"; }
+function dim(string $s): string    { return "\033[2m{$s}\033[0m"; }
+
+function bar(float $pct, int $w = 15): string {
+    $pct = max(-100, min(100, $pct));
+    $filled = (int)(abs($pct) / 100 * $w);
+    if ($filled < 1 && abs($pct) > 0.01) $filled = 1;
+    $empty = $w - $filled;
+    if ($pct >= 0) return green(str_repeat('█', $filled)) . dim(str_repeat('░', $empty));
+    return red(str_repeat('█', $filled)) . dim(str_repeat('░', $empty));
+}
+
+// ── Signal handler ──────────────────────────────────────
+$running = true;
+pcntl_signal(SIGINT, function() use (&$running) { $running = false; });
+pcntl_signal(SIGTERM, function() use (&$running) { $running = false; });
+
+function fetch_data(): array {
+    $conn = Database::getConnection();
+    return [
+        'bots'       => $conn->executeQuery("SELECT id,coin_pair,allocated_capital,status,runtime_state,configuration FROM bots ORDER BY id")->fetchAllAssociative(),
+        'trades'     => $conn->executeQuery("SELECT tl.*,b.coin_pair FROM trade_logs tl JOIN bots b ON b.id=tl.bot_id ORDER BY tl.created_at DESC LIMIT 3")->fetchAllAssociative(),
+        'audit'      => $conn->executeQuery("SELECT event_type,event_summary,created_at FROM audit_logs ORDER BY created_at DESC LIMIT 2")->fetchAllAssociative(),
+        'total_bots' => $conn->executeQuery("SELECT COUNT(*) FROM bots")->fetchOne(),
+        'active_bots'=> $conn->executeQuery("SELECT COUNT(*) FROM bots WHERE status=1")->fetchOne(),
+        'deals'      => $conn->executeQuery("SELECT COUNT(*) FROM bots WHERE status=1 AND runtime_state NOT LIKE '%\"status\":\"IDLE\"%'")->fetchOne(),
+        'tg'         => Config::get('TELEGRAM_BOT_TOKEN') ? true : false,
+        'ai'         => Config::aiConfig()['api_key'] !== '' && Config::aiConfig()['base_url'] !== '',
+        'keys'       => $conn->executeQuery("SELECT COUNT(*) FROM user_api_keys")->fetchOne(),
+        'time'       => date('H:i:s'),
+        'date'       => date('Y-m-d'),
+    ];
+}
+
+// ── Render ──────────────────────────────────────────────
+function render(array $data, int $n): void {
+    cls();
+    $w = (int)exec('tput cols 2>/dev/null') ?: 80;
+
+    // Top bar
+    printf("\033[48;5;236m\033[1;37m  🚀 FIXZY KRIPTOBOT  │  TESTNET  │  %s %s  │  Refresh #%d  \033[0m\n\n",
+        $data['date'], $data['time'], $n);
+
+    // Bot list
+    if (empty($data['bots'])) {
+        echo "  " . yellow("No bots. Create one:") . "  " . cyan("kb bot:create") . "\n\n";
+    } else {
+        foreach ($data['bots'] as $b) {
+            $state = json_decode($b['runtime_state'], true) ?: [];
+            $config = json_decode($b['configuration'], true) ?: [];
+            $status = $state['status'] ?? 'IDLE';
+            $pnl = $state['live_pnl_percent'] ?? 0;
+            $holdings = $state['current_holdings'] ?? 0;
+            $entry = $state['average_entry_price'] ?? 0;
+            $enabled = $b['status'] ? green('●') : red('○');
+
+            $statusStyle = match($status) {
+                'ACTIVE' => green($status), 'IDLE' => dim($status),
+                default => yellow($status),
+            };
+
+            $pnlStr = $pnl != 0 ? sprintf('%+6.2f%%', $pnl) : ' 0.00%';
+            $pnlColored = $pnl > 0 ? green($pnlStr) : ($pnl < 0 ? red($pnlStr) : dim($pnlStr));
+
+            printf("  %s Bot #%d  %-16s  %s  %s\n",
+                $enabled, $b['id'], bold($b['coin_pair']), $statusStyle, $pnlColored);
+            printf("     Capital: \$%s  Entry: \$%s  Holdings: %s\n",
+                number_format($b['allocated_capital'], 2),
+                $entry > 0 ? number_format($entry, 2) : '-',
+                $holdings > 0 ? number_format($holdings, 6) : '-');
+
+            // Conditions
+            $baseConds = $config['base_order']['conditions'] ?? [];
+            $dcaSteps = $config['dca']['max_steps'] ?? 0;
+            $tp = $config['risk_management']['target_profit'] ?? 2;
+            $sl = $config['risk_management']['cut_loss_percent'] ?? 0;
+            $cut = $config['risk_management']['cut_loss_enabled'] ?? false;
+
+            echo "     ";
+            if (!empty($baseConds)) {
+                $types = array_map(fn($c) => $c['type'], $baseConds);
+                echo "Entry: " . cyan(implode('+', $types)) . "  ";
+            }
+            if ($dcaSteps > 0) echo "DCA: " . cyan("{$dcaSteps}steps") . "  ";
+            echo "TP: " . green("{$tp}%") . "  ";
+            if ($cut) echo "SL: " . red("{$sl}%") . "  ";
+            echo "\n";
+
+            if ($holdings > 0) {
+                printf("     PNL %s %s\n", $pnlColored, bar($pnl, 20));
+            }
+            echo "\n";
+        }
+    }
+
+    // System bar
+    echo dim(str_repeat('─', $w)) . "\n";
+    printf("  Bots: %d  Active: %d  Deals: %d  TG: %s  AI: %s  Keys: %s\n",
+        $data['total_bots'], $data['active_bots'], $data['deals'],
+        $data['tg'] ? green('✓') : dim('✗'),
+        $data['ai'] ? green('✓') : dim('✗'),
+        $data['keys'] > 0 ? green('✓') : red('✗'));
+    echo dim(str_repeat('─', $w)) . "\n";
+
+    // Recent trades
+    if (!empty($data['trades'])) {
+        echo "\n  " . bold('LAST TRADES') . "\n";
+        foreach ($data['trades'] as $t) {
+            $action = $t['action'];
+            $icon = str_contains($action, 'BUY') ? '↑' : (str_contains($action, 'SELL') ? '↓' : '●');
+            $price = isset($t['price']) ? '$'.number_format($t['price'], 2) : '';
+            $time = substr($t['created_at'] ?? '', -8);
+            printf("  %s %s %-12s %s  %s\n",
+                dim($time), str_contains($action,'BUY')?green($icon):red($icon),
+                $t['coin_pair'] ?? '', $action, $price);
+        }
+    }
+
+    // Audit
+    if (!empty($data['audit'])) {
+        echo "\n  " . bold('RECENT') . "\n";
+        foreach ($data['audit'] as $a) {
+            $time = substr($a['created_at'] ?? '', -8);
+            printf("  %s %-15s %s\n", dim($time), cyan($a['event_type']), $a['event_summary']);
+        }
+    }
+
+    // Footer — always visible commands
+    echo "\n" . dim(str_repeat('─', $w)) . "\n";
+    echo bold("  COMMANDS:") . "\n";
+    echo "  " . cyan("kb bot:create") . "       Quick create bot\n";
+    echo "  " . cyan("kb bot:create-full") . "  Create bot (full JSON)\n";
+    echo "  " . cyan("kb bot:edit N") . "       Quick edit settings\n";
+    echo "  " . cyan("kb bot:edit-full N") . "  Edit all config (JSON)\n";
+    echo "  " . cyan("kb bot:activate N") . "  Toggle ON/OFF\n";
+    echo "  " . cyan("kb bot:delete N") . "   Delete bot\n";
+    echo "  " . cyan("kb daemon:run") . "     Run daemon now\n";
+    echo "  " . cyan("kb market:scan") . "    Scan top 20 pairs\n";
+    echo "\n  " . dim("Ctrl+C to quit  |  Auto-refresh 5s") . "\n";
+}
+
+// ── Main ────────────────────────────────────────────────
+hide_cursor();
+$n = 0;
+
+while ($running) {
+    try {
+        render(fetch_data(), ++$n);
+    } catch (\Exception $e) {
+        echo "\n" . red("ERROR: " . $e->getMessage()) . "\n";
+    }
+
+    // Sleep 5s with signal check
+    for ($i = 0; $i < 50 && $running; $i++) {
+        usleep(100000);
+        pcntl_signal_dispatch();
+    }
+}
+
+show_cursor();
+cls();
+echo "Dashboard closed.\n";

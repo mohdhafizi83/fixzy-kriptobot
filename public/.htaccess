@@ -1,0 +1,31 @@
+# Fixzy Kriptobot — public web directory (.htaccess for Apache shared hosting)
+#
+# This file is safe on both mod_php and PHP-FPM hosting: it contains NO
+# php_value/php_flag directives (those 500-error on FPM). PHP settings are
+# handled in application code instead.
+
+# ── No directory listings ─────────────────────────────────────────────────────
+Options -Indexes -MultiViews
+
+# ── Block dotfiles (.env, .git, .htaccess itself, etc.) ──────────────────────
+<FilesMatch "^\.">
+    Require all denied
+</FilesMatch>
+
+# ── Block sensitive file types even if they land in public/ ────────────────────
+<FilesMatch "\.(sqlite|sqlite3|db|log|ini|lock|bak|swp|dist)$">
+    Require all denied
+</FilesMatch>
+
+# ── Security headers (backup layer; PHP pages also send these in code) ────────
+<IfModule mod_headers.c>
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-Frame-Options "DENY"
+    Header always set Referrer-Policy "same-origin"
+    Header always set Permissions-Policy "camera=(), microphone=(), geolocation=()"
+</IfModule>
+
+# ── Deny access to backup/editor junk ────────────────────────────────────────
+<FilesMatch "(~$|\.orig$|\.save$)">
+    Require all denied
+</FilesMatch>

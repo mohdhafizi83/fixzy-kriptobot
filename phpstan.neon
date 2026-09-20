@@ -1,0 +1,11 @@
+parameters:
+    level: 5
+    paths:
+        - src
+        - bin
+        - public
+    excludePaths:
+        analyse:
+            - vendor
+            - bin/test_*.php
+    treatPhpDocTypesAsCertain: false

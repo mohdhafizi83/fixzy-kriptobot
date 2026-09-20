@@ -1,0 +1,77 @@
+#!/usr/bin/env php
+<?php
+/**
+ * bot:edit-full — Edit ALL bot settings via JSON editor
+ * Opens current config in your $EDITOR. Save & exit to apply.
+ * Usage: kb bot:edit-full <id>
+ */
+require_once __DIR__ . '/../src/bootstrap.php';
+
+use Fixzy\Kriptobot\Database\Database;
+
+function green($s) { return "\033[32m{$s}\033[0m"; }
+function red($s)   { return "\033[31m{$s}\033[0m"; }
+function cyan($s)  { return "\033[36m{$s}\033[0m"; }
+function bold($s)  { return "\033[1m{$s}\033[0m"; }
+
+$botId = (int)($argv[1] ?? 0);
+if ($botId < 1) {
+    echo red("Usage: kb bot:edit-full <id>\n");
+    exit(1);
+}
+
+$conn = Database::getConnection();
+$bot = $conn->executeQuery("SELECT id, coin_pair, allocated_capital, configuration FROM bots WHERE id = ?", [$botId])->fetchAssociative();
+
+if (!$bot) {
+    echo red("Bot #{$botId} not found.\n");
+    exit(1);
+}
+
+$config = json_decode($bot['configuration'], true) ?: [];
+
+// Pretty-print with comments explaining each field
+$template = [
+    '_HELP' => '⬆ Edit values above. Save & exit to apply. Delete _HELP before saving.',
+    '_CONDITIONS_HELP' => 'Available types: start_asap, rsi, rsi_14, bollinger, qfl, tv_webhook, external_signal, news_sentiment',
+    '_CONDITION_FORMAT' => [
+        '_example_rsi'    => ['type' => 'rsi_14', 'value' => '< 30', 'timeframe' => '1h', 'period' => 14],
+        '_example_bb'     => ['type' => 'bollinger', 'value' => 'below_lower', 'timeframe' => '1h', 'period' => 20, 'stddev' => 2.0],
+        '_example_qfl'    => ['type' => 'qfl', 'value' => 'Simple', 'timeframe' => '1h'],
+        '_example_tv'     => ['type' => 'tv_webhook', 'value' => 'BUY'],
+        '_example_signal' => ['type' => 'external_signal', 'value' => 'STRONG_BUY'],
+        '_example_sentiment' => ['type' => 'news_sentiment', 'value' => 'BULLISH'],
+        '_example_asap'   => ['type' => 'start_asap', 'value' => ''],
+    ],
+    'general' => $config['general'] ?? [],
+    'base_order' => $config['base_order'] ?? [],
+    'dca' => $config['dca'] ?? [],
+    'risk_management' => $config['risk_management'] ?? [],
+];
+
+$tmpFile = '/tmp/kriptobot_bot_' . $botId . '.json';
+file_put_contents($tmpFile, json_encode($template, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+
+$editor = getenv('EDITOR') ?: (getenv('VISUAL') ?: 'nano');
+system("{$editor} {$tmpFile} > /dev/tty 2>&1");
+
+// Read back
+$newJson = file_get_contents($tmpFile);
+$newConfig = json_decode($newJson, true);
+
+if ($newConfig === null) {
+    echo red("Invalid JSON. Changes NOT saved.\n");
+    echo "Check: {$tmpFile}\n";
+    exit(1);
+}
+
+// Remove help keys
+unset($newConfig['_HELP'], $newConfig['_CONDITIONS_HELP'], $newConfig['_CONDITION_FORMAT']);
+
+$conn->executeStatement(
+    "UPDATE bots SET configuration = ? WHERE id = ?",
+    [json_encode($newConfig), $botId]
+);
+
+echo green("✓ Bot #{$botId} config updated.") . "\n";
+@unlink($tmpFile);

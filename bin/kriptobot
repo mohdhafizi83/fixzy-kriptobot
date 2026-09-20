@@ -1,0 +1,11 @@
+#!/bin/bash
+# kriptobot — CLI entry point
+# Resolves symlinks to find actual script location
+SELF="$(realpath "${BASH_SOURCE[0]}")"
+SCRIPT_DIR="$(dirname "$SELF")"
+
+exec php \
+  -d "extension=${SCRIPT_DIR}/extensions/sqlite3.so" \
+  -d "extension=${SCRIPT_DIR}/extensions/pdo_sqlite.so" \
+  "${SCRIPT_DIR}/kriptobot.php" \
+  "$@"

@@ -1,0 +1,119 @@
+#!/usr/bin/env php
+<?php
+/**
+ * bot:create-full — Create new bot with FULL config via JSON editor
+ * Opens a template with all options. Edit, save & exit to create.
+ * Usage: kb bot:create-full
+ */
+require_once __DIR__ . '/../src/bootstrap.php';
+
+use Fixzy\Kriptobot\Database\Database;
+
+function green($s) { return "\033[32m{$s}\033[0m"; }
+function red($s)   { return "\033[31m{$s}\033[0m"; }
+function cyan($s)  { return "\033[36m{$s}\033[0m"; }
+function bold($s)  { return "\033[1m{$s}\033[0m"; }
+
+$template = [
+    '_HELP' => 'Fill in values below. Save & exit. Remove _HELP keys before saving.',
+    '_CONDITION_TYPES' => 'start_asap | rsi_14 | bollinger | qfl | tv_webhook | external_signal | news_sentiment',
+    '_EXAMPLES' => [
+        'rsi'         => ['type' => 'rsi_14', 'value' => '< 30', 'timeframe' => '1h', 'period' => 14],
+        'bollinger'   => ['type' => 'bollinger', 'value' => 'below_lower', 'timeframe' => '1h', 'period' => 20, 'stddev' => 2.0],
+        'qfl'         => ['type' => 'qfl', 'value' => 'Simple', 'timeframe' => '1h'],
+        'tv_webhook'  => ['type' => 'tv_webhook', 'value' => 'BUY'],
+        'start_asap'  => ['type' => 'start_asap', 'value' => ''],
+        'sentiment'   => ['type' => 'news_sentiment', 'value' => 'BULLISH'],
+        'ext_signal'  => ['type' => 'external_signal', 'value' => 'STRONG_BUY'],
+    ],
+
+    'general' => [
+        'name'            => 'My Bot',
+        'exchange'        => 'binance',
+        'pair_strategy'   => 'custom_list',
+        'custom_pairs'    => 'BTC/USDT',
+        'capital'         => 100,
+        'max_active_deals'=> 1,
+    ],
+
+    'base_order' => [
+        'order_type'        => 'market',
+        'cooldown_seconds'  => 3600,
+        'trailing_enabled'  => false,
+        'trailing_deviation'=> 0.5,
+        'conditions' => [
+            ['type' => 'start_asap', 'value' => ''],
+        ],
+    ],
+
+    'dca' => [
+        'max_steps'           => 3,
+        'price_drop_trigger'  => 5.0,
+        'volume_scale'        => 1.5,
+        'step_scale'          => 1.0,
+        'placed_on_exchange'  => 'no',
+        'trailing_enabled'    => false,
+        'trailing_deviation'  => 0.4,
+        'conditions' => [],
+    ],
+
+    'risk_management' => [
+        'tp_type'              => 'average_price',
+        'target_profit'        => 2.0,
+        'trailing_tp_enabled'  => false,
+        'trailing_tp_deviation'=> 0.5,
+        'cut_loss_enabled'     => true,
+        'cut_loss_percent'     => 15.0,
+        'trailing_sl_enabled'  => false,
+        'min_guard_enabled'    => true,
+        'min_guard_percent'    => 0.3,
+        'min_guard_timeout'    => 48,
+        'partial_sell_enabled' => false,
+        'partial_targets'      => '',
+        'sell_conditions' => [],
+    ],
+];
+
+$tmpFile = '/tmp/kriptobot_new_bot.json';
+file_put_contents($tmpFile, json_encode($template, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+
+$editor = getenv('EDITOR') ?: (getenv('VISUAL') ?: 'nano');
+system("{$editor} {$tmpFile} > /dev/tty 2>&1");
+
+$newJson = file_get_contents($tmpFile);
+$newConfig = json_decode($newJson, true);
+
+if ($newConfig === null) {
+    echo red("Invalid JSON. Bot NOT created.\n");
+    echo "Check: {$tmpFile}\n";
+    exit(1);
+}
+
+// Extract values
+$pairs = $newConfig['general']['custom_pairs'] ?? 'BTC/USDT';
+$capital = (float)($newConfig['general']['capital'] ?? 100);
+
+// Remove help keys
+unset($newConfig['_HELP'], $newConfig['_CONDITION_TYPES'], $newConfig['_EXAMPLES']);
+
+$state = [
+    'status'              => 'IDLE',
+    'current_holdings'    => 0.0,
+    'average_entry_price' => 0.0,
+    'live_pnl_percent'    => 0.0,
+    'dca_current_step'    => 0,
+    'latest_tv_signal'    => '',
+    'latest_external_signal' => '',
+    'latest_ai_sentiment' => '',
+];
+
+$conn = Database::getConnection();
+$conn->executeStatement(
+    "INSERT INTO bots (user_id, coin_pair, allocated_capital, status, configuration, runtime_state) VALUES (?, ?, ?, 0, ?, ?)",
+    [Database::USER_ID, $pairs, $capital, json_encode($newConfig), json_encode($state)]
+);
+
+$id = $conn->lastInsertId();
+echo green("✓ Bot #{$id} created!") . "\n";
+echo "  Run " . cyan("kb bot:activate {$id}") . " to enable.\n";
+@unlink($tmpFile);

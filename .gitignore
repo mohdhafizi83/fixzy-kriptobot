@@ -1,0 +1,17 @@
+/vendor
+/.kilo
+/notepad++session
+.env
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+/storage/logs/
+/access_credential.md
+/brain/
+/database/cache/
+/bin/extensions/
+node_modules/
+/AGENTS.md
+to_delete/
+.phpunit.cache/
+/bin/bot_daemon.lock
