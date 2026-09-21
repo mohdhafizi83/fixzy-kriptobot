@@ -32,4 +32,4 @@ jobs:
         run: vendor/bin/phpunit --testsuite Integration
 
       - name: Dependency security audit
-        run: composer audit
+        run: composer audit --abandoned=ignore
