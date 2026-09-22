@@ -32,6 +32,9 @@
 > real public release. Tag v0.1.0 remains on the private repo. On release day:
 > flip this repo public (recommended, sanitized history preserved) or create a fresh
 > repo if a clean single-commit history is preferred.
+> **RESOLVED 2026-09-22**: the public release shipped as
+> https://github.com/mohdhafizi83/fixzy-kriptobot (fresh sanitized history,
+> v0.2.0+). The kriptobot-oss name is retired; all references below are historical.
 >
 > **SESSION HANDOFF (2026-09-20, end of session)**
 >

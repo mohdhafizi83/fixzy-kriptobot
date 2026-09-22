@@ -14,11 +14,10 @@ set up a development environment and what we expect from contributions.
 2. **Setup**
 
    ```bash
-   git clone git@github.com:mohdhafizi83/kriptobot-oss.git
-   cd kriptobot-oss
+   git clone https://github.com/mohdhafizi83/fixzy-kriptobot.git
+   cd fixzy-kriptobot
    composer install
-   cp .env.example .env   # then edit .env — see docs/CONFIGURATION.md
-   php bin/migrate_schema.php
+   php bin/kriptobot setup   # first-run wizard (or open the web UI)
    ```
 
    If your system PHP lacks `pdo_sqlite`, use the bundled wrapper:
