@@ -8,6 +8,8 @@ market analysis, backtesting, and live dashboards. Built on PHP 8.5 +
 SQLite and connected to Binance via CCXT. **Ships testnet-first: live
 trading requires an explicit opt-in.**
 
+Open-source, self-hosted alternative to 3Commas.
+
 Everything runs on your own hardware with a single SQLite file — no
 subscriptions, no cloud lock-in, your keys never leave your machine.
 
@@ -373,3 +375,8 @@ vulnerabilities.
 ## License
 
 MIT — see [LICENSE](LICENSE).
+
+*3Commas is a registered trademark of its respective owner. Fixzy
+Kriptobot is an independent, open-source project and is not affiliated
+with, endorsed by, or sponsored by 3Commas. The mention is purely
+descriptive.*
