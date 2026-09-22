@@ -192,14 +192,31 @@ $loopInterval = 10;
 $idleInterval = 60;     // when idle, tick every 60s to save resources
 $tickCount = 1;
 
-// Single-tick mode for cron-based hosting (shared hosting has no systemd and
-// typically only allows cron at 1-minute granularity). Runs exactly one tick,
-// then exits. The flock() guard above prevents overlap with a slow previous
-// tick. Enable with: php bin/bot_daemon.php --once   (or KRIPTOBOT_SINGLE_TICK=1)
-$singleTick = in_array('--once', $argv ?? [], true)
-    || getenv('KRIPTOBOT_SINGLE_TICK') === '1';
+// Cron mode for hosting without systemd (shared/cPanel hosts only offer cron,
+// typically at 1-minute granularity). Instead of looping forever, run a
+// bounded number of ticks with a delay between them, then exit — so a
+// 1-minute cron can still deliver the same tick cadence as a full daemon:
+//   --ticks=6 --interval=10   -> 6 ticks x 10s = full-minute coverage
+//   --once                    -> shorthand for --ticks=1
+// The flock() guard above prevents overlap with a slow previous run.
+// Keep total runtime (ticks x interval) under the host's max_execution_time;
+// on stricter hosts use e.g. --ticks=2 --interval=30.
+$cronTicks = 0; // 0 = unlimited loop (systemd/foreground mode)
+foreach (array_slice($argv ?? [], 1) as $arg) {
+    if ($arg === '--once') {
+        $cronTicks = 1;
+    } elseif (preg_match('/^--ticks=(\d+)$/', $arg, $m)) {
+        $cronTicks = max(1, (int)$m[1]);
+    } elseif (preg_match('/^--interval=(\d+)$/', $arg, $m)) {
+        $loopInterval = max(1, (int)$m[1]);
+    }
+}
+if (getenv('KRIPTOBOT_SINGLE_TICK') === '1' && $cronTicks === 0) {
+    $cronTicks = 1;
+}
+$singleTick = $cronTicks > 0;
 if ($singleTick) {
-    echo "⏰ Single-tick mode (cron): one tick per run, no loop.\n";
+    echo "⏰ Cron mode: {$cronTicks} tick(s) x {$loopInterval}s delay, then exit.\n";
 }
 
 try {
@@ -1761,8 +1778,15 @@ if (($state['current_holdings'] ?? 0) <= 0) {
     }
 
     if ($singleTick) {
-        echo "⏰ Single tick complete. Exiting (cron mode).\n";
-        break;
+        if ($tickCount >= $cronTicks) {
+            echo "⏰ Cron run complete ({$cronTicks} tick(s)). Exiting.\n";
+            break;
+        }
+        // In cron mode, keep the requested cadence regardless of idle state.
+        echo "⏳ Next tick in {$loopInterval}s ({$tickCount}/{$cronTicks})...\n";
+        sleep($loopInterval);
+        $tickCount++;
+        continue;
     }
 
     if (!$hasActiveDeal) {

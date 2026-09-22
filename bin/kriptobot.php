@@ -468,13 +468,15 @@ switch ($command) {
 
     case 'daemon:cron':
         echo bold("─── Cron Setup ───") . "\n\n";
-        echo "On a VPS/dedicated server, prefer the systemd unit (bin/kriptobot-daemon.service).\n\n";
-        echo "On shared/cPanel hosting, cron is the only scheduler. Use SINGLE-TICK mode\n";
-        echo "(--once) so each cron run does exactly one tick and exits (no overlap,\n";
-        echo "guarded by flock). Add this line to crontab (crontab -e):\n\n";
-        echo yellow("  * * * * * " . realpath(__DIR__) . "/php_sqlite.sh " . realpath(__DIR__) . "/bot_daemon.php --once >> " . dirname(__DIR__) . "/storage/logs/cron.log 2>&1") . "\n\n";
-        echo "Note: cron granularity is 1 minute, so active-deal ticks run every minute\n";
-        echo "instead of every 10s. Fine for DCA/recovery logic; slightly slower exits.\n\n";
+        echo "VPS/dedicated server (recommended): use the systemd unit\n";
+        echo "(bin/kriptobot-daemon.service) for a continuous 10s-tick daemon.\n\n";
+        echo "Web hosting with cron only: run the daemon in CRON MODE so each\n";
+        echo "1-minute cron invocation covers the full minute with N ticks:\n\n";
+        echo yellow("  * * * * * " . realpath(__DIR__) . "/php_sqlite.sh " . realpath(__DIR__) . "/bot_daemon.php --ticks=6 --interval=10 >> " . dirname(__DIR__) . "/storage/logs/cron.log 2>&1") . "\n\n";
+        echo "That is 6 ticks x 10s = the same cadence as the full daemon.\n";
+        echo "The flock() guard prevents overlapping runs. Keep total runtime\n";
+        echo "(ticks x interval) under the host's max_execution_time; on stricter\n";
+        echo "hosts use --ticks=2 --interval=30, or --once for a single tick.\n\n";
         break;
 
     case 'dashboard':

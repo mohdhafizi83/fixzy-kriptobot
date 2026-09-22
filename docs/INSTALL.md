@@ -147,29 +147,33 @@ systemctl status kriptobot-daemon
 The daemon ticks every 10s for active bots (60s idle), writes price ticks,
 evaluates strategies, and executes paper trades on Binance Testnet.
 
-### Shared / cPanel hosting: cron single-tick mode
+### Web hosting with cron only (shared/cPanel)
 
 Shared hosting has no systemd and usually only allows cron at 1-minute
-granularity. Run the daemon in **single-tick mode** (`--once`): each cron
-invocation performs exactly one tick and exits. A `flock()` guard makes
-overlapping runs impossible — if a tick is still running when the next
-cron fires, the new process exits immediately.
-
-Add to crontab (`crontab -e`, or the cPanel Cron Jobs panel):
+granularity. That is **not a limitation**: run the daemon in **cron
+mode** so each 1-minute cron invocation covers the whole minute with
+multiple ticks:
 
 ```cron
-* * * * * /path/to/kriptobot/bin/php_sqlite.sh /path/to/kriptobot/bin/bot_daemon.php --once >> /path/to/kriptobot/storage/logs/cron.log 2>&1
+* * * * * /path/to/kriptobot/bin/php_sqlite.sh /path/to/kriptobot/bin/bot_daemon.php --ticks=6 --interval=10 >> /path/to/kriptobot/storage/logs/cron.log 2>&1
 ```
 
-Notes:
-- Ticks run every 1 minute instead of every 10s. DCA, recovery, and
-  trailing logic all work fine at this cadence; only exit timing is
-  slightly coarser.
-- Some hosts (cPanel) enforce a minimum interval of 5 minutes — the bot
-  still works, just with slower reaction.
+- `--ticks=6 --interval=10` → 6 ticks × 10s = the same cadence as the
+  full systemd daemon, delivered inside one cron minute.
+- `--once` → shorthand for a single tick per cron run.
+- A `flock()` guard makes overlapping runs impossible — if the previous
+  invocation is still running, the new one exits immediately.
+- Keep total runtime (`ticks × interval`) under the host's
+  `max_execution_time`. On stricter hosts use `--ticks=2 --interval=30`.
 - If the host's PHP lacks `pdo_sqlite`, the `php_sqlite.sh` wrapper
   handles it (see §1).
 - `php bin/kriptobot daemon:cron` prints the exact line for your paths.
+
+**Deployment recommendation:** a VPS/dedicated server with the systemd
+unit is the recommended setup (continuous loop, auto-restart, 10s
+ticks). Web hosting with cron jobs is fully supported as the
+budget-friendly alternative — same engine, same results, just scheduled
+instead of always-on.
 
 ## 8. Web UI (optional)
 
