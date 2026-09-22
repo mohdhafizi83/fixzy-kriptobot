@@ -468,10 +468,13 @@ switch ($command) {
 
     case 'daemon:cron':
         echo bold("─── Cron Setup ───") . "\n\n";
-        echo "Cron job is managed by Hermes:\n";
-        echo "  Job: kriptobot-daemon (every 1 min)\n\n";
-        echo "Or add this line to crontab (crontab -e):\n\n";
-        echo yellow("  * * * * * " . realpath(__DIR__) . "/php_sqlite.sh " . realpath(__DIR__) . "/bot_daemon.php >> " . dirname(__DIR__) . "/storage/logs/cron.log 2>&1") . "\n\n";
+        echo "On a VPS/dedicated server, prefer the systemd unit (bin/kriptobot-daemon.service).\n\n";
+        echo "On shared/cPanel hosting, cron is the only scheduler. Use SINGLE-TICK mode\n";
+        echo "(--once) so each cron run does exactly one tick and exits (no overlap,\n";
+        echo "guarded by flock). Add this line to crontab (crontab -e):\n\n";
+        echo yellow("  * * * * * " . realpath(__DIR__) . "/php_sqlite.sh " . realpath(__DIR__) . "/bot_daemon.php --once >> " . dirname(__DIR__) . "/storage/logs/cron.log 2>&1") . "\n\n";
+        echo "Note: cron granularity is 1 minute, so active-deal ticks run every minute\n";
+        echo "instead of every 10s. Fine for DCA/recovery logic; slightly slower exits.\n\n";
         break;
 
     case 'dashboard':

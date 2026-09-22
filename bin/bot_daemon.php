@@ -121,7 +121,7 @@ $refreshAiMarketSignals = function (
     $state['ai_market_signals'] = $signals;
 };
 
-$lockFile = __DIR__ . '/bot_daemon.lock';
+$lockFile = getenv('KRIPTOBOT_LOCK_FILE') ?: (__DIR__ . '/bot_daemon.lock');
 $lockHandle = fopen($lockFile, "w+");
 if (!flock($lockHandle, LOCK_EX | LOCK_NB)) {
     echo "⚠️ [CRON] bot_daemon.php is still running from a previous process. Exiting to avoid overlap.\n";
@@ -191,6 +191,16 @@ $notifyFeatureDisabled = function (string $featureKey, string $context, int $bot
 $loopInterval = 10;
 $idleInterval = 60;     // when idle, tick every 60s to save resources
 $tickCount = 1;
+
+// Single-tick mode for cron-based hosting (shared hosting has no systemd and
+// typically only allows cron at 1-minute granularity). Runs exactly one tick,
+// then exits. The flock() guard above prevents overlap with a slow previous
+// tick. Enable with: php bin/bot_daemon.php --once   (or KRIPTOBOT_SINGLE_TICK=1)
+$singleTick = in_array('--once', $argv ?? [], true)
+    || getenv('KRIPTOBOT_SINGLE_TICK') === '1';
+if ($singleTick) {
+    echo "⏰ Single-tick mode (cron): one tick per run, no loop.\n";
+}
 
 try {
 while (true) {
@@ -1748,6 +1758,11 @@ if (($state['current_holdings'] ?? 0) <= 0) {
                 'trace'       => $e->getTraceAsString(),
             ]);
         }
+    }
+
+    if ($singleTick) {
+        echo "⏰ Single tick complete. Exiting (cron mode).\n";
+        break;
     }
 
     if (!$hasActiveDeal) {

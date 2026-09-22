@@ -326,6 +326,16 @@ running (`systemctl status kriptobot-daemon` or `php bin/kriptobot
 daemon:run` in the foreground); (4) conditions are being met — the
 audit log records why each tick did or didn't fire.
 
+**Can I run the daemon on shared/cPanel hosting (cron only)?**
+Yes. Shared hosting has no systemd, so run the daemon in single-tick
+mode from cron: `bot_daemon.php --once` performs exactly one tick and
+exits, and a `flock()` guard prevents overlapping runs. Add
+`* * * * * .../bin/php_sqlite.sh .../bin/bot_daemon.php --once >> .../storage/logs/cron.log 2>&1`
+to your crontab (or the cPanel Cron Jobs panel). Ticks then run every
+minute instead of every 10s — DCA, recovery, and trailing logic all
+work fine at that cadence. `php bin/kriptobot daemon:cron` prints the
+exact line for your paths. Full details in `docs/INSTALL.md` §7.
+
 **Can I trade with real money?**
 The default is testnet-only (`BINANCE_TESTNET=1`). Live trading requires
 an explicit opt-in and live keys. This is experimental software — never
