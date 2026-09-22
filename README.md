@@ -109,7 +109,10 @@ subscriptions, no cloud lock-in, your keys never leave your machine.
 > the extension from `bin/extensions/`). Tests run the same way:
 > `./bin/php_sqlite.sh vendor/bin/phpunit`.
 
-## Installation
+## Installation (fresh install — 5 minutes)
+
+The fastest path for non-technical users: clone, install, and let the
+**setup wizard** do the rest. No config files to hand-edit.
 
 ### 1. Clone and install dependencies
 
@@ -119,45 +122,41 @@ cd kriptobot
 composer install
 ```
 
-### 2. Configure environment
+### 2. Start the web UI
 
 ```bash
-cp .env.example .env
+php -S 0.0.0.0:8080 -t public/     # local preview
+# or deploy to Apache/cPanel — see "Shared hosting" below
 ```
 
-Edit `.env`. The only **required** value is the encryption key:
+Open `http://localhost:8080` — because this is a fresh install, you are
+**automatically redirected to the setup wizard** (`setup.php`).
 
-```bash
-AES_MASTER_KEY=base64:$(php -r "echo base64_encode(random_bytes(32));")
-```
+### 3. Complete the setup wizard
 
-All other keys are **optional** — features that need them stay disabled
-(with a visible reason) until you add and verify them:
+The wizard takes about 2 minutes:
 
-| Key | Purpose |
-|-----|---------|
-| `AI_API_KEY` / `AI_BASE_URL` / `AI_MODEL` | AI market analysis, sentiment, agent (any OpenAI-compatible provider) |
-| `CRYPTOPANIC_API_KEY` | News feed for AI sentiment |
-| `TELEGRAM_BOT_TOKEN` | Trade alerts and AI proposal notifications |
+1. **Admin account (required)** — pick any email and password (min 8
+   characters). This is local to your server only; no email verification,
+   no external account. It is the single login for the web UI.
+2. **Binance Testnet keys (strongly recommended)** — free keys from
+   <https://testnet.binance.vision/> (sign in with GitHub, click
+   *Generate New API Key*). The bot cannot trade without them, but you
+   can skip and add them later under **Settings → Environment**.
 
-Each key in `.env.example` ships with instructions on where to obtain it.
+What the wizard does for you automatically:
 
-### 3. Initialize the database
+- Generates the AES-256 encryption key (`AES_MASTER_KEY`) — never
+  hand-edit config files
+- Creates the SQLite database and full schema
+- Encrypts your API secret at rest (never stored in plain text)
+- **Locks itself** — once setup is done, `setup.php` permanently
+  redirects to the login page and cannot be re-run
 
-```bash
-php bin/migrate_schema.php
-```
+### 4. Log in and create your first bot
 
-### 4. Add exchange credentials
-
-Get free testnet keys at
-<https://testnet.binance.vision/guide>, then:
-
-```bash
-php bin/kriptobot keys
-```
-
-### 5. Create and run your first bot
+Sign in with the email + password from step 3, then create a bot from
+the web UI — or via CLI:
 
 ```bash
 php bin/kriptobot bot:create      # interactive wizard
@@ -165,32 +164,30 @@ php bin/kriptobot bot:activate 1
 php bin/kriptobot dashboard      # live TUI (Ctrl+C to quit)
 ```
 
-Or run the daemon in the foreground:
+### 5. Run the daemon
 
 ```bash
-php bin/kriptobot daemon:run
+php bin/kriptobot daemon:run      # foreground test
 ```
 
-### 6. Web UI (also works on standard shared web hosting)
+For production, use the provided systemd template
+(`bin/kriptobot-daemon.service` — adjust paths, then
+`systemctl enable --now kriptobot-daemon`).
 
-Local preview:
+> **Prefer the terminal for setup?** `php bin/kriptobot setup` runs the
+> same first-run wizard in the CLI.
 
-```bash
-php -S 0.0.0.0:8080 -t public/
-# open http://localhost:8080 — log in with your admin credentials
-```
+### Shared / cPanel hosting
 
-**Shared / cPanel hosting is fully supported.** The app is plain PHP + a
-single SQLite file — no root access, no Node build step, no special server
-modules beyond `pdo_sqlite`, `curl`, `mbstring` (and optionally `apcu`).
+The app is plain PHP + a single SQLite file — no root access, no Node
+build step, no special server modules beyond `pdo_sqlite`, `curl`,
+`mbstring` (and optionally `apcu`).
 
-Deploy steps for standard web hosting:
-
-1. Upload the project (via git or FTP). **Point the document root at the
-   `public/` directory** — never at the project root. If your host won't
-   let you change the document root, the bundled root `.htaccess` rewrites
-   all traffic into `public/` and denies direct access to `src/`,
-   `vendor/`, `database/`, `storage/`, and `bin/`.
+1. Upload the project (via git or FTP). **Point the document root at
+   the `public/` directory** — never at the project root. If your host
+   won't let you change the document root, the bundled root `.htaccess`
+   rewrites all traffic into `public/` and denies direct access to
+   `src/`, `vendor/`, `database/`, `storage/`, and `bin/`.
 2. Set `APP_ENV=production` in `.env` — this disables `display_errors`
    so stack traces never reach the browser.
 3. `chmod 600 .env` and make sure `database/` + `storage/` are writable
@@ -199,11 +196,26 @@ Deploy steps for standard web hosting:
    if your host allows it (set `DB_PATH` accordingly).
 5. HTTPS: enable the host's SSL (Let's Encrypt is standard). Cookies and
    HSTS switch on automatically when HTTPS is detected.
+6. Open the URL once in a browser and complete the setup wizard (step 3
+   above).
 
-### 7. (Optional) systemd service
+### Advanced: file-based config (optional)
 
-`bin/kriptobot-daemon.service` is provided as a template
-(`systemctl enable --now` after adjusting paths).
+You do **not** need `.env` to run Kriptobot — the wizard stores
+everything in the database. Power users who prefer file-based config can
+still use it: `cp .env.example .env` and edit. Values set through the
+Web UI / CLI always take priority over `.env`.
+
+| Key | Purpose |
+|-----|---------|
+| `AES_MASTER_KEY` | Encryption key — auto-generated by the setup wizard if missing |
+| `AI_API_KEY` / `AI_BASE_URL` / `AI_MODEL` | AI market analysis, sentiment, agent (any OpenAI-compatible provider) |
+| `CRYPTOPANIC_API_KEY` | News feed for AI sentiment |
+| `TELEGRAM_BOT_TOKEN` | Trade alerts and AI proposal notifications |
+
+Each key in `.env.example` ships with instructions on where to obtain it.
+Initialize the database manually only if you skip the wizard:
+`php bin/migrate_schema.php`.
 
 ## Feature Gating
 
@@ -233,7 +245,7 @@ The web layer is hardened by default — no extra configuration required:
 
 | Control | Details |
 |---|---|
-| **Real login** | Password form with bcrypt verification; no auto-login anywhere. First install seeds the password from `DEV_ADMIN_PASSWORD`, then it lives only as a bcrypt hash in the DB. Reset via `php bin/kriptobot password:reset`. |
+| **Real login** | Password form with bcrypt verification; no auto-login anywhere. First install forces the setup wizard (`setup.php` or `php bin/kriptobot setup`) where you create the admin account; the password lives only as a bcrypt hash in the DB. Reset via `php bin/kriptobot password:reset`. |
 | **Session hardening** | HttpOnly + SameSite=Lax cookies, `Secure` flag auto-on under HTTPS, 8-hour idle timeout, session ID regenerated on login (fixation-proof). |
 | **CSRF** | Every session-authenticated state-changing API call requires a valid `X-CSRF-Token` (constant-time compared). Bearer-token clients are exempt by design. |
 | **Rate limiting** | Login: 10 attempts / 15 min per IP (429). API: 300 req/min per IP. Webhooks: 60/min per IP. APCu-backed with a file fallback so it works on shared hosting without APCu. |
@@ -257,6 +269,71 @@ The web layer is hardened by default — no extra configuration required:
 vendor/bin/phpstan analyse                        # static analysis
 composer audit                                    # dependency advisories
 ```
+
+## FAQ
+
+**I forgot my admin password. How do I reset it?**
+On the server, run `php bin/kriptobot password:reset` and follow the
+prompt. The new password is stored as a bcrypt hash; there is no email
+recovery by design (the account never touches the internet).
+
+**The setup wizard is locked and I need to re-run setup.**
+The wizard locks permanently once the admin password is set — this is a
+security feature so strangers can't re-run it on a public server. To
+change anything afterwards, use the Web UI (**Settings → Environment**
+for testnet keys, **Settings → Integrations** for Telegram/AI/webhooks)
+or the CLI (`php bin/kriptobot setup` shows status; `password:reset`
+changes the password).
+
+**I skipped the testnet keys during setup. Where do I add them?**
+Log in → **Settings → Environment** → paste your API key and secret from
+<https://testnet.binance.vision/>. The secret is encrypted with AES-256
+before it touches the database.
+
+**Do I need to create or edit `.env`?**
+No. The setup wizard auto-generates the encryption key and stores all
+credentials in the database. `.env` is optional, file-based config for
+power users. If both exist, the database values win over `.env`.
+
+**The bot says a feature is disabled / "FEATURE_DISABLED".**
+Every integration (AI, Telegram, CryptoPanic) stays off until its
+credentials are configured *and* pass a live verification call. The
+**Integration & Feature Status** banner in the web UI shows the exact
+reason. Add or fix the key under **Settings → Integrations**.
+
+**"Master key must be exactly 32 bytes" or secrets suddenly won't decrypt.**
+This means `AES_MASTER_KEY` changed after secrets were encrypted. Restore
+the original key in `.env`, or re-enter the affected keys through the
+Web UI so they are re-encrypted with the current key. Keep a safe copy
+of `.env` — losing the master key means losing the stored secrets.
+
+**Login says "Too many attempts" (429).**
+Rate limiting is 10 attempts / 15 minutes per IP. Wait 15 minutes, or
+restart the server to clear the counter (file-backed counters live in
+`storage/`).
+
+**The web UI shows a white page / PHP errors.**
+Check `php -m | grep -E 'pdo_sqlite|curl|mbstring'` — a missing
+extension is the usual cause. On minimal PHP builds use the bundled
+wrapper: `./bin/php_sqlite.sh <command>`. In production set
+`APP_ENV=production` so errors go to logs instead of the browser.
+
+**The daemon isn't trading.**
+Checklist: (1) exchange keys configured and verified — the daemon logs
+the verification result at startup; (2) at least one bot is *activated*
+(`php bin/kriptobot bots` shows status); (3) the daemon is actually
+running (`systemctl status kriptobot-daemon` or `php bin/kriptobot
+daemon:run` in the foreground); (4) conditions are being met — the
+audit log records why each tick did or didn't fire.
+
+**Can I trade with real money?**
+The default is testnet-only (`BINANCE_TESTNET=1`). Live trading requires
+an explicit opt-in and live keys. This is experimental software — never
+point it at funds you cannot afford to lose.
+
+**Where do I report a security issue?**
+See [SECURITY.md](SECURITY.md). Do not open a public issue for
+vulnerabilities.
 
 ## Documentation
 

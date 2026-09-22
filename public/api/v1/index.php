@@ -251,6 +251,31 @@ $router->add('PUT', '/settings/recovery-mode', function (array $p, array $b) use
     return ['smart_recovery_mode' => !empty($b['smart_recovery_mode'])];
 });
 
+// ─── Integrations (DB-backed settings; DB wins over .env) ───────────────────
+$settingService = new \Fixzy\Kriptobot\Service\SettingService();
+
+$router->add('GET', '/settings/integrations', function () use ($settingService): array {
+    return ['integrations' => $settingService->maskedAll()];
+});
+
+$router->add('PUT', '/settings/integrations', function (array $p, array $b) use ($settingService): array {
+    $updated = [];
+    foreach ((array)$b as $key => $value) {
+        if (!\Fixzy\Kriptobot\Service\SettingService::isManagedKey($key)) {
+            throw new ApiException('Unknown setting key: ' . $key, 422);
+        }
+        if ($value === null) {
+            continue; // leave unchanged
+        }
+        if (!is_string($value)) {
+            throw new ApiException('Setting values must be strings: ' . $key, 422);
+        }
+        $settingService->set($key, $value);
+        $updated[] = $key;
+    }
+    return ['updated' => $updated, 'integrations' => $settingService->maskedAll()];
+});
+
 $router->add('GET', '/settings/agent', function () use ($userId): array {
     $manager = new \Fixzy\Kriptobot\Agent\Approval\ApprovalManager();
     return $manager->getAgentSettings($userId);

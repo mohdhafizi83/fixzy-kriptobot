@@ -39,52 +39,60 @@ cd kriptobot
 composer install
 ```
 
-## 3. Configure `.env`
+## 3. Configure `.env` (optional)
+
+You do **not** need to create or edit `.env` to get started — the setup wizard
+(§4) auto-generates the encryption key and stores all credentials in the
+database. `.env` is only for power users who prefer file-based config; values
+set through the UI/CLI always take priority over `.env`.
+
+If you do want a `.env` (optional overrides):
 
 ```bash
 cp .env.example .env
 ```
 
-Edit `.env` and set at minimum:
-
-```ini
-# 32-byte AES key for encrypting stored API secrets.
-# Generate with: php -r "echo base64_encode(random_bytes(32));"
-AES_MASTER_KEY=base64:***
-
-# Binance Testnet keys (from https://testnet.binance.vision/)
-# Add them via CLI (they get encrypted at rest):
-#   php bin/kriptobot keys
-BINANCE_TESTNET=1
-```
-
-Optional keys (Telegram notifications, AI/LLM, TradingView webhook secret)
-are documented inline in `.env.example` and in
-[docs/CONFIGURATION.md](CONFIGURATION.md).
+Optional keys (Telegram, AI/LLM, TradingView webhook secret) can also be set
+later from the Web UI under **Settings → Integrations** — no file editing
+needed.
 
 > Never commit your real `.env`. It is gitignored.
 
-## 4. Initialize the database
+## 4. First-run setup (required)
+
+Either way you pick, the wizard creates your admin account, auto-generates the
+AES-256 encryption key into `.env`, and (optionally) stores your Binance
+Testnet API keys encrypted in the database.
+
+**Web (recommended for non-technical users):**
+
+```bash
+./bin/php_sqlite.sh -S 127.0.0.1:8081 -t public
+# open http://127.0.0.1:8081/  → you are redirected to the setup wizard
+```
+
+**CLI (power users):**
+
+```bash
+php bin/kriptobot setup
+```
+
+The wizard self-locks: once your password is set, the setup page can never be
+run again. Change your password later via Settings or
+`php bin/kriptobot password:reset`.
+
+Testnet keys are **strongly recommended but skippable** — get free keys at
+<https://testnet.binance.vision/> and add them during setup or later from
+**Settings → Environment**.
+
+## 5. Initialize the database (if not done by the wizard)
 
 ```bash
 php bin/migrate_schema.php
 ```
 
-This creates `database/kriptobot.sqlite` with the full schema and the default
-single user (`admin@kriptobot.local`). Set your DB path in `.env`
-(`DB_PATH=...`) if you keep it elsewhere.
-
-## 5. Add your Testnet API keys
-
-```bash
-php bin/kriptobot keys
-```
-
-Keys are encrypted with `AES_MASTER_KEY` before being stored. Verify with:
-
-```bash
-php bin/kriptobot status
-```
+This creates `database/kriptobot.sqlite` with the full schema. Set your DB
+path in `.env` (`DB_PATH=...`) if you keep it elsewhere.
 
 ## 6. Create your first bot
 

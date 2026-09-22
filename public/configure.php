@@ -318,6 +318,90 @@ SessionGuard::requireWeb();
                         </div>
                     </form>
                 </div>
+
+                <!-- INTEGRATIONS CARD (DB-backed; overrides .env) -->
+                <div class="bg-white rounded-xl shadow-md p-6 border-t-4 border-sky-500 mt-6" x-data="integrationsCard()">
+                    <h2 class="text-xl font-bold mb-1 text-gray-800 flex items-center">
+                        <span class="text-2xl mr-2">🔌</span> Integrations
+                    </h2>
+                    <p class="text-sm text-gray-500 mb-4">
+                        Optional services. Values saved here are stored encrypted and take priority over <code>.env</code>.
+                        Leave a secret blank to keep the current value.
+                    </p>
+                    <form @submit.prevent="saveIntegrations()" class="space-y-5">
+                        <div class="border rounded-lg p-4 bg-gray-50 space-y-3">
+                            <h3 class="font-bold text-sm text-gray-800">📬 Telegram Notifications</h3>
+                            <div>
+                                <label class="block text-xs font-bold text-gray-700 mb-1">Bot Token
+                                    <span class="font-normal text-gray-500" x-text="badge('TELEGRAM_BOT_TOKEN')"></span>
+                                </label>
+                                <input type="password" x-model="fields.TELEGRAM_BOT_TOKEN" autocomplete="off"
+                                       placeholder="from @BotFather (leave blank to keep current)"
+                                       class="w-full border rounded p-2 text-xs focus:ring-2 focus:ring-sky-500 outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-gray-700 mb-1">Webhook Secret
+                                    <span class="font-normal text-gray-500" x-text="badge('TELEGRAM_WEBHOOK_SECRET')"></span>
+                                </label>
+                                <input type="password" x-model="fields.TELEGRAM_WEBHOOK_SECRET" autocomplete="off"
+                                       placeholder="leave blank to keep current"
+                                       class="w-full border rounded p-2 text-xs focus:ring-2 focus:ring-sky-500 outline-none">
+                            </div>
+                        </div>
+
+                        <div class="border rounded-lg p-4 bg-gray-50 space-y-3">
+                            <h3 class="font-bold text-sm text-gray-800">🧠 AI Analysis (OpenAI-compatible provider)</h3>
+                            <div>
+                                <label class="block text-xs font-bold text-gray-700 mb-1">AI API Key
+                                    <span class="font-normal text-gray-500" x-text="badge('AI_API_KEY')"></span>
+                                </label>
+                                <input type="password" x-model="fields.AI_API_KEY" autocomplete="off"
+                                       placeholder="leave blank to keep current"
+                                       class="w-full border rounded p-2 text-xs focus:ring-2 focus:ring-sky-500 outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-gray-700 mb-1">Base URL
+                                    <span class="font-normal text-gray-500" x-text="badge('AI_BASE_URL')"></span>
+                                </label>
+                                <input type="text" x-model="fields.AI_BASE_URL"
+                                       placeholder="e.g. https://api.deepseek.com/v1"
+                                       class="w-full border rounded p-2 text-xs focus:ring-2 focus:ring-sky-500 outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-gray-700 mb-1">Model
+                                    <span class="font-normal text-gray-500" x-text="badge('AI_MODEL')"></span>
+                                </label>
+                                <input type="text" x-model="fields.AI_MODEL"
+                                       placeholder="e.g. deepseek-chat"
+                                       class="w-full border rounded p-2 text-xs focus:ring-2 focus:ring-sky-500 outline-none">
+                            </div>
+                        </div>
+
+                        <div class="border rounded-lg p-4 bg-gray-50 space-y-3">
+                            <h3 class="font-bold text-sm text-gray-800">📰 News & Webhooks</h3>
+                            <div>
+                                <label class="block text-xs font-bold text-gray-700 mb-1">CryptoPanic API Key
+                                    <span class="font-normal text-gray-500" x-text="badge('CRYPTOPANIC_API_KEY')"></span>
+                                </label>
+                                <input type="password" x-model="fields.CRYPTOPANIC_API_KEY" autocomplete="off"
+                                       placeholder="leave blank to keep current"
+                                       class="w-full border rounded p-2 text-xs focus:ring-2 focus:ring-sky-500 outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-gray-700 mb-1">TradingView Webhook Secret
+                                    <span class="font-normal text-gray-500" x-text="badge('TRADINGVIEW_WEBHOOK_SECRET')"></span>
+                                </label>
+                                <input type="password" x-model="fields.TRADINGVIEW_WEBHOOK_SECRET" autocomplete="off"
+                                       placeholder="leave blank to keep current"
+                                       class="w-full border rounded p-2 text-xs focus:ring-2 focus:ring-sky-500 outline-none">
+                            </div>
+                        </div>
+
+                        <div class="pt-2">
+                            <button type="submit" class="w-full bg-sky-500 hover:bg-sky-600 text-white font-bold py-2 px-6 rounded-lg transition shadow-md">Save Integrations</button>
+                        </div>
+                    </form>
+                </div>
             </div>
 
             <div class="lg:col-span-2">
@@ -723,6 +807,50 @@ SessionGuard::requireWeb();
                         }
                     });
                 }
+            }));
+        });
+    </script>
+
+    <script>
+        document.addEventListener('alpine:init', () => {
+            Alpine.data('integrationsCard', () => ({
+                fields: {
+                    TELEGRAM_BOT_TOKEN: '', TELEGRAM_WEBHOOK_SECRET: '',
+                    AI_API_KEY: '', AI_BASE_URL: '', AI_MODEL: '',
+                    CRYPTOPANIC_API_KEY: '', TRADINGVIEW_WEBHOOK_SECRET: ''
+                },
+                status: {},
+                async init() {
+                    try {
+                        const d = await apiCall('/settings/integrations', 'GET');
+                        this.status = d.integrations || {};
+                        // Pre-fill only the non-secret fields.
+                        ['AI_BASE_URL', 'AI_MODEL'].forEach(k => {
+                            if (this.status[k] && this.status[k].set) this.fields[k] = this.status[k].masked;
+                        });
+                    } catch (e) { console.error('Integrations load failed:', e); }
+                },
+                badge(key) {
+                    const s = this.status[key];
+                    if (!s || !s.set) return '';
+                    return '— currently: ' + s.masked + ' (from ' + s.source.toUpperCase() + ')';
+                },
+                async saveIntegrations() {
+                    const payload = {};
+                    Object.keys(this.fields).forEach(k => {
+                        if (this.fields[k] !== '') payload[k] = this.fields[k];
+                    });
+                    try {
+                        const d = await apiCall('/settings/integrations', 'PUT', payload);
+                        this.status = d.integrations || {};
+                        ['AI_BASE_URL', 'AI_MODEL'].forEach(k => {
+                            if (this.status[k] && this.status[k].set) this.fields[k] = this.status[k].masked;
+                        });
+                        flash('Integrations saved. Use "Re-verify All" above to test connections.');
+                    } catch (e) {
+                        flash('Failed to save integrations: ' + e.message, true);
+                    }
+                },
             }));
         });
     </script>

@@ -17,6 +17,12 @@ Config::load();
 SecurityHeaders::send();
 SessionGuard::start();
 
+// Fresh install: force the first-run wizard before any login is possible.
+if (SessionGuard::setupPending()) {
+    header('Location: setup.php');
+    exit;
+}
+
 // Already logged in? Straight to the dashboard.
 if (SessionGuard::isAuthenticated()) {
     header('Location: index.php');
@@ -43,21 +49,6 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
         $db = Database::getConnection();
         $auth = new AuthService($db);
         $user = $auth->authenticate($email, $password);
-
-        // First-run bootstrap: if the stored hash is empty (fresh install) and a
-        // DEV_ADMIN_PASSWORD is configured, accept it once and store its hash.
-        if ($user === null) {
-            $row = $db->fetchAssociative("SELECT id, email, password_hash FROM users WHERE email = ? LIMIT 1", [$email]);
-            $seed = Config::get('DEV_ADMIN_PASSWORD', '');
-            if ($row !== false && ($row['password_hash'] === '' || $row['password_hash'] === null)
-                && $seed !== '' && hash_equals($seed, $password)) {
-                $db->executeStatement(
-                    "UPDATE users SET password_hash = ? WHERE id = ?",
-                    [password_hash($password, PASSWORD_BCRYPT), (int)$row['id']]
-                );
-                $user = ['id' => (int)$row['id'], 'email' => (string)$row['email']];
-            }
-        }
 
         if ($user !== null) {
             $limiter->clear('login:' . $ip);

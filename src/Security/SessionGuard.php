@@ -63,15 +63,37 @@ class SessionGuard
     }
 
     /**
-     * Gate for browser pages: redirect to login when unauthenticated.
+     * Gate for browser pages: redirect to setup when the install has not been
+     * configured yet, or to login when unauthenticated.
      */
     public static function requireWeb(): void
     {
         self::start();
+        if (self::setupPending()) {
+            header('Location: setup.php');
+            exit;
+        }
         if (!self::isAuthenticated()) {
             header('Location: login.php');
             exit;
         }
+    }
+
+    /**
+     * True when the admin account still has no password (fresh install).
+     * Cached per request; safe when the DB is missing (treated as pending).
+     */
+    public static function setupPending(): bool
+    {
+        static $pending = null;
+        if ($pending === null) {
+            try {
+                $pending = (new \Fixzy\Kriptobot\Service\SetupService())->setupRequired();
+            } catch (\Throwable $e) {
+                $pending = true;
+            }
+        }
+        return $pending;
     }
 
     /**

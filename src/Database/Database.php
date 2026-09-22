@@ -12,7 +12,8 @@ class Database
     public static function getConnection(): Connection
     {
         if (self::$connection === null) {
-            $path = __DIR__ . '/../../database/kriptobot.sqlite';
+            $path = \Fixzy\Kriptobot\Config\Config::get('DB_PATH')
+                ?: __DIR__ . '/../../database/kriptobot.sqlite';
             self::$connection = DriverManager::getConnection([
                 'driver' => 'pdo_sqlite',
                 'path'   => realpath($path) ?: $path,

@@ -40,17 +40,17 @@ class FeatureStatusService
         self::FEATURE_AI => [
             'label'      => 'AI Analysis (OpenAI-compatible)',
             'required'   => false,
-            'hint'       => 'AI market analysis (ai_market conditions) and news sentiment. Needs AI_API_KEY, AI_BASE_URL, AI_MODEL in .env.',
+            'hint'       => 'AI market analysis (ai_market conditions) and news sentiment. Set AI API key, base URL and model under Settings → Integrations (or .env).',
         ],
         self::FEATURE_CRYPTOPANIC => [
             'label'      => 'CryptoPanic News Feed',
             'required'   => false,
-            'hint'       => 'News source used by AI sentiment analysis. Needs CRYPTOPANIC_API_KEY in .env.',
+            'hint'       => 'News source used by AI sentiment analysis. Set CRYPTOPANIC_API_KEY under Settings → Integrations (or .env).',
         ],
         self::FEATURE_TELEGRAM => [
             'label'      => 'Telegram Notifications',
             'required'   => false,
-            'hint'       => 'Trade alerts and agent notifications. Needs TELEGRAM_BOT_TOKEN in .env and a chat id in your profile.',
+            'hint'       => 'Trade alerts and agent notifications. Set TELEGRAM_BOT_TOKEN under Settings → Integrations and a chat id in your profile.',
         ],
     ];
 

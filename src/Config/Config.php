@@ -24,8 +24,24 @@ class Config
     public static function load(): void
     {
         if (self::$loaded) return;
+        self::doLoad();
+        self::$loaded = true;
+    }
 
-        $envFile = dirname(__DIR__, 2) . '/.env';
+    /**
+     * Force re-reading the .env file (after it was modified at runtime).
+     */
+    public static function reload(): void
+    {
+        self::$env = [];
+        self::doLoad();
+        self::$loaded = true;
+    }
+
+    private static function doLoad(): void
+    {
+        // KRIPTOBOT_ENV_FILE overrides the .env location (used by tests).
+        $envFile = getenv('KRIPTOBOT_ENV_FILE') ?: dirname(__DIR__, 2) . '/.env';
         if (file_exists($envFile)) {
             foreach (file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) as $line) {
                 $line = trim($line);
@@ -51,7 +67,74 @@ class Config
     public static function get(string $key, string $default = ''): string
     {
         self::load();
+
+        // DB overlay: user-managed settings (set via Web UI / CLI setup) win
+        // over .env. Guarded so a missing/broken database never breaks config.
+        if (\Fixzy\Kriptobot\Service\SettingService::isManagedKey($key)) {
+            $dbVal = self::dbOverlay($key);
+            if ($dbVal !== null && $dbVal !== '') {
+                return $dbVal;
+            }
+        }
+
         return self::$env[$key] ?? self::DEFAULTS[$key] ?? $default;
+    }
+
+    /**
+     * Read the raw .env value only (no DB overlay). Used by the settings UI to
+     * show where a value comes from.
+     */
+    public static function rawEnv(string $key): string
+    {
+        self::load();
+        return self::$env[$key] ?? self::DEFAULTS[$key] ?? '';
+    }
+
+    private static ?bool $dbOverlayAvailable = null;
+    private static ?array $dbOverlayCache = null;
+
+    /**
+     * Load all managed settings from the database once per process.
+     * Returns null when the database is unavailable.
+     */
+    private static function dbOverlayMap(): ?array
+    {
+        if (self::$dbOverlayCache !== null) {
+            return self::$dbOverlayCache;
+        }
+        if (self::$dbOverlayAvailable === false) {
+            return null;
+        }
+        try {
+            $svc = new \Fixzy\Kriptobot\Service\SettingService();
+            $map = [];
+            foreach (array_keys(\Fixzy\Kriptobot\Service\SettingService::KEYS) as $k) {
+                $map[$k] = $svc->get($k);
+            }
+            self::$dbOverlayAvailable = true;
+            self::$dbOverlayCache = $map;
+            return $map;
+        } catch (\Throwable $e) {
+            self::$dbOverlayAvailable = false;
+            return null;
+        }
+    }
+
+    /**
+     * Invalidate the DB settings overlay cache (call after writes).
+     */
+    public static function invalidateDbOverlay(): void
+    {
+        self::$dbOverlayCache = null;
+    }
+
+    /**
+     * Fetch a managed setting from the database, or null when unavailable.
+     */
+    private static function dbOverlay(string $key): ?string
+    {
+        $map = self::dbOverlayMap();
+        return $map[$key] ?? null;
     }
 
     /**

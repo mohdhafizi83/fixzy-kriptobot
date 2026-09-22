@@ -245,6 +245,70 @@ function cmd_daemon_run(): void {
     echo "\n" . ($exitCode === 0 ? green("Daemon finished.") : red("Daemon exited with code {$exitCode}.")) . "\n";
 }
 
+function cmd_setup(): void {
+    banner();
+    echo bold("─── First-Run Setup ───") . "\n\n";
+
+    $setup = new \Fixzy\Kriptobot\Service\SetupService();
+
+    if (!$setup->setupRequired()) {
+        echo yellow("Setup already completed. Admin account has a password set.\n");
+        echo "Use " . cyan("password:reset") . " to change it, or edit settings via the Web UI.\n";
+        return;
+    }
+
+    echo dim("This wizard configures your admin account and (optionally) Binance Testnet keys.\n\n");
+
+    // 1. Master key auto-generation
+    $mk = $setup->ensureMasterKey();
+    if ($mk['error'] !== '') {
+        echo red("Cannot prepare encryption key: {$mk['error']}\n");
+        return;
+    }
+    echo ($mk['created'] ? green("✓ AES-256 master key generated and saved to .env") : dim("• AES master key already present")) . "\n";
+
+    // 2. Admin credentials
+    $email = prompt('Admin email', 'admin@kriptobot.local');
+    echo "  Password (min 8 chars): ";
+    $pass = trim((string) (fgets(STDIN) ?: ''));
+    if (strlen($pass) < 8) {
+        echo red("Password too short (minimum 8 characters). Aborted.\n");
+        return;
+    }
+    echo "  Confirm password: ";
+    $pass2 = trim((string) (fgets(STDIN) ?: ''));
+    if ($pass !== $pass2) {
+        echo red("Passwords do not match. Aborted.\n");
+        return;
+    }
+
+    // 3. Testnet keys (strongly recommended, skippable)
+    echo "\n" . bold("Binance Testnet keys") . dim(" (strongly recommended — the bot can't trade without them)") . "\n";
+    echo dim("Get free keys at https://testnet.binance.vision/ — press Enter to skip.\n");
+    $key = trim(prompt('Testnet API Key', ''));
+    $secret = '';
+    if ($key !== '') {
+        echo "  Testnet API Secret: ";
+        $secret = trim((string) (fgets(STDIN) ?: ''));
+        if ($secret === '') {
+            echo red("API secret required when a key is provided. Aborted.\n");
+            return;
+        }
+    }
+
+    try {
+        $setup->completeSetup($email, $pass, $pass2, $key, $secret);
+    } catch (\Throwable $e) {
+        echo red("Setup failed: " . $e->getMessage() . "\n");
+        return;
+    }
+
+    echo green("✓ Setup complete!\n\n");
+    echo "  Admin:  {$email}\n";
+    echo "  Keys:   " . ($key !== '' ? green('testnet keys saved (encrypted)') : yellow('skipped — add later via Web UI Settings → Environment')) . "\n\n";
+    echo "Next: " . cyan("bot:create") . " to create your first bot, or open the Web UI.\n";
+}
+
 function cmd_password_reset(string $email = ''): void {
     $conn = Database::getConnection();
     if ($email === '') {
@@ -426,6 +490,10 @@ switch ($command) {
         cmd_keys_show();
         break;
 
+    case 'setup':
+        cmd_setup();
+        break;
+
     case 'password:reset':
         cmd_password_reset((string)($arg2 ?? ''));
         break;
@@ -447,6 +515,8 @@ switch ($command) {
         echo "  " . cyan("dashboard") . "        Live TUI dashboard (Ctrl+C to quit)\n";
         echo "  " . cyan("market:scan") . "      Scan top 20 pairs on Binance testnet\n";
         echo "  " . cyan("keys:show") . "        Show API keys status\n";
+        echo "  " . cyan("setup") . "           First-run setup wizard (admin account + keys)\n";
+        echo "  " . cyan("password:reset") . "  Reset admin password\n";
         echo "  " . cyan("help") . "             This help\n";
         break;
 }

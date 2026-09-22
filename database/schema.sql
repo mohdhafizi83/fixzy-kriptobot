@@ -178,3 +178,9 @@ CREATE TABLE feature_status (
             last_checked_at TEXT DEFAULT NULL,
             last_verified_at TEXT DEFAULT NULL
         );
+CREATE TABLE IF NOT EXISTS app_settings (
+    setting_key TEXT PRIMARY KEY,
+    value TEXT NOT NULL DEFAULT '',
+    encrypted INTEGER NOT NULL DEFAULT 0,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
