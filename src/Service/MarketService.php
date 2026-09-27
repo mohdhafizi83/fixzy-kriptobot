@@ -7,11 +7,16 @@ use Fixzy\Kriptobot\Database\Database;
 
 /**
  * MarketService — read-only market data (price ticks, cached pair list).
+ * This file must retain this notice and its attribution to Fixzy Kriptobot (free use, attribution required - see LICENSE).
  */
 class MarketService
 {
     private Connection $db;
 
+    /**
+     * __construct.
+     * @param Connection|null $db (default: null)
+     */
     public function __construct(?Connection $db = null)
     {
         $this->db = $db ?? Database::getConnection();

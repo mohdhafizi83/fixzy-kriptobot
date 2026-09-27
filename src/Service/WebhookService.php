@@ -10,11 +10,16 @@ use Fixzy\Kriptobot\Database\Database;
  *
  * Owns the SQL that webhook endpoints used to contain so that no SQL lives
  * in public/.
+ * This file must retain this notice and its attribution to Fixzy Kriptobot (free use, attribution required - see LICENSE).
  */
 class WebhookService
 {
     private Connection $db;
 
+    /**
+     * __construct.
+     * @param Connection|null $db (default: null)
+     */
     public function __construct(?Connection $db = null)
     {
         $this->db = $db ?? Database::getConnection();

@@ -1,5 +1,9 @@
 <?php
 /**
+ * CLI script of the Fixzy Kriptobot project.
+ * This file must retain this notice and its attribution to Fixzy Kriptobot (free use, attribution required - see LICENSE).
+ */
+/**
  * CronAgentOptimizer.php
  *
  * Cron job script that periodically monitors bot performance and suggests

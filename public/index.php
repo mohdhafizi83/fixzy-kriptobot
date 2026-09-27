@@ -1,4 +1,8 @@
 <?php
+/**
+ * Web UI page of the Fixzy Kriptobot project.
+ * This file must retain this notice and its attribution to Fixzy Kriptobot (free use, attribution required - see LICENSE).
+ */
 // File: public/index.php — Dashboard shell (Phase 1: API-first, no direct DB access).
 // All data is loaded from /api/v1/index.php by the JavaScript below.
 

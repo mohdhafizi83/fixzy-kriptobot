@@ -1,6 +1,10 @@
 #!/usr/bin/env php
 <?php
 /**
+ * CLI script of the Fixzy Kriptobot project.
+ * This file must retain this notice and its attribution to Fixzy Kriptobot (free use, attribution required - see LICENSE).
+ */
+/**
  * kriptobot — CLI Trading Bot Manager
  * 
  * Usage: ./bin/kriptobot <command> [options]
@@ -12,19 +16,60 @@ use Fixzy\Kriptobot\Database\Database;
 use Fixzy\Kriptobot\Config\Config;
 
 // ── Color helpers ──────────────────────────────────────────
+/**
+ * Green.
+ * @param string $s
+ * @return string
+ */
 function green(string $s): string  { return "\033[32m{$s}\033[0m"; }
+/**
+ * Red.
+ * @param string $s
+ * @return string
+ */
 function red(string $s): string    { return "\033[31m{$s}\033[0m"; }
+/**
+ * Yellow.
+ * @param string $s
+ * @return string
+ */
 function yellow(string $s): string { return "\033[33m{$s}\033[0m"; }
+/**
+ * Cyan.
+ * @param string $s
+ * @return string
+ */
 function cyan(string $s): string   { return "\033[36m{$s}\033[0m"; }
+/**
+ * Bold.
+ * @param string $s
+ * @return string
+ */
 function bold(string $s): string   { return "\033[1m{$s}\033[0m"; }
+/**
+ * Dim.
+ * @param string $s
+ * @return string
+ */
 function dim(string $s): string    { return "\033[2m{$s}\033[0m"; }
 
 // ── Helpers ────────────────────────────────────────────────
+/**
+ * Json_pretty.
+ * @param string $json
+ * @return string
+ */
 function json_pretty(string $json): string {
     $d = json_decode($json, true);
     return is_array($d) ? json_encode($d, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) : $json;
 }
 
+/**
+ * Prompt.
+ * @param string $q
+ * @param string $default (default: '')
+ * @return string
+ */
 function prompt(string $q, string $default = ''): string {
     $d = $default !== '' ? " [$default]" : '';
     echo cyan("  ? ") . $q . $d . ": ";
@@ -32,6 +77,12 @@ function prompt(string $q, string $default = ''): string {
     return $answer !== '' ? $answer : $default;
 }
 
+/**
+ * Prompt_bool.
+ * @param string $q
+ * @param bool $default (default: true)
+ * @return bool
+ */
 function prompt_bool(string $q, bool $default = true): bool {
     $yn = $default ? 'Y/n' : 'y/N';
     $a = strtolower(prompt($q, $default ? 'y' : 'n'));
@@ -39,6 +90,10 @@ function prompt_bool(string $q, bool $default = true): bool {
 }
 
 // ── Banner ─────────────────────────────────────────────────
+/**
+ * Banner.
+ * @return void
+ */
 function banner(): void {
     echo bold(cyan("
    ╔══════════════════════════════════════╗
@@ -49,6 +104,10 @@ function banner(): void {
 }
 
 // ── Commands ───────────────────────────────────────────────
+/**
+ * Cmd_status.
+ * @return void
+ */
 function cmd_status(): void {
     $conn = Database::getConnection();
     $userId = Database::USER_ID;
@@ -74,6 +133,10 @@ function cmd_status(): void {
     echo "  AI:       " . ($aiCfg['api_key'] ? green('enabled (' . $aiCfg['model'] . ')') : yellow('disabled')) . "\n";
 }
 
+/**
+ * Cmd_bots.
+ * @return void
+ */
 function cmd_bots(): void {
     $conn = Database::getConnection();
     $bots = $conn->executeQuery(
@@ -103,6 +166,10 @@ function cmd_bots(): void {
     }
 }
 
+/**
+ * Cmd_bot_create.
+ * @return void
+ */
 function cmd_bot_create(): void {
     banner();
     echo bold("─── Create New Bot ───") . "\n\n";
@@ -173,6 +240,11 @@ function cmd_bot_create(): void {
     echo "  Run " . cyan("./bin/kriptobot bot:activate {$id}") . " to enable.\n";
 }
 
+/**
+ * Cmd_bot_activate.
+ * @param int $botId
+ * @return void
+ */
 function cmd_bot_activate(int $botId): void {
     $conn = Database::getConnection();
     $bot = $conn->executeQuery("SELECT id, status FROM bots WHERE id = ?", [$botId])->fetchAssociative();
@@ -185,6 +257,11 @@ function cmd_bot_activate(int $botId): void {
     echo green("✓ Bot #{$botId} {$label}.\n");
 }
 
+/**
+ * Cmd_bot_edit.
+ * @param int $botId
+ * @return void
+ */
 function cmd_bot_edit(int $botId): void {
     $conn = Database::getConnection();
     $bot = $conn->executeQuery("SELECT id, coin_pair, allocated_capital, status, configuration FROM bots WHERE id = ?", [$botId])->fetchAssociative();
@@ -217,6 +294,11 @@ function cmd_bot_edit(int $botId): void {
     echo green("✓ Bot #{$botId} updated.") . "\n";
 }
 
+/**
+ * Cmd_bot_delete.
+ * @param int $botId
+ * @return void
+ */
 function cmd_bot_delete(int $botId): void {
     $conn = Database::getConnection();
     $bot = $conn->executeQuery("SELECT id, coin_pair FROM bots WHERE id = ?", [$botId])->fetchAssociative();
@@ -229,6 +311,10 @@ function cmd_bot_delete(int $botId): void {
     echo green("✓ Bot #{$botId} deleted.\n");
 }
 
+/**
+ * Cmd_daemon_run.
+ * @return void
+ */
 function cmd_daemon_run(): void {
     echo bold("─── Starting Daemon ───") . "\n\n";
 
@@ -245,6 +331,10 @@ function cmd_daemon_run(): void {
     echo "\n" . ($exitCode === 0 ? green("Daemon finished.") : red("Daemon exited with code {$exitCode}.")) . "\n";
 }
 
+/**
+ * Cmd_setup.
+ * @return void
+ */
 function cmd_setup(): void {
     banner();
     echo bold("─── First-Run Setup ───") . "\n\n";
@@ -309,6 +399,11 @@ function cmd_setup(): void {
     echo "Next: " . cyan("bot:create") . " to create your first bot, or open the Web UI.\n";
 }
 
+/**
+ * Cmd_password_reset.
+ * @param string $email (default: '')
+ * @return void
+ */
 function cmd_password_reset(string $email = ''): void {
     $conn = Database::getConnection();
     if ($email === '') {
@@ -343,6 +438,10 @@ function cmd_password_reset(string $email = ''): void {
     echo green("✓ Password updated. Existing web sessions remain valid until logout/timeout.\n");
 }
 
+/**
+ * Cmd_keys_show.
+ * @return void
+ */
 function cmd_keys_show(): void {
     $conn = Database::getConnection();
     $user = $conn->executeQuery(
@@ -368,6 +467,10 @@ function cmd_keys_show(): void {
     if (empty($keys)) echo yellow("  No API keys configured.\n");
 }
 
+/**
+ * Cmd_market_scan.
+ * @return void
+ */
 function cmd_market_scan(): void {
     $conn = Database::getConnection();
     $user = $conn->executeQuery("SELECT testnet_api_key, testnet_api_secret_encrypted FROM users WHERE id=1")->fetchAssociative();

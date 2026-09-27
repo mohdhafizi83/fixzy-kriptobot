@@ -2,6 +2,10 @@
 
 namespace Fixzy\Kriptobot\Trading;
 
+/**
+ * Class SmartRecoveryManager - part of the Fixzy Kriptobot project.
+ * This file must retain this notice and its attribution to Fixzy Kriptobot (free use, attribution required - see LICENSE).
+ */
 class SmartRecoveryManager
 {
     private bool $isActive = false;
@@ -49,16 +53,28 @@ class SmartRecoveryManager
         }
     }
 
+    /**
+     * Is Smart Mode Active.
+     * @return bool
+     */
     public function isSmartModeActive(): bool
     {
         return $this->isActive;
     }
 
+    /**
+     * Get Active Capital.
+     * @return float
+     */
     public function getActiveCapital(): float
     {
         return $this->lockedCapital;
     }
 
+    /**
+     * Get Recovery Progress.
+     * @return array
+     */
     public function getRecoveryProgress(): array
     {
         return [

@@ -6,13 +6,26 @@ use Fixzy\Kriptobot\Agent\Tools\ToolInterface;
 use Fixzy\Kriptobot\Agent\Tools\ToolResult;
 use Fixzy\Kriptobot\Database\Database;
 
+/**
+ * Class GetTradeHistoryTool - part of the Fixzy Kriptobot project.
+ * This file must retain this notice and its attribution to Fixzy Kriptobot (free use, attribution required - see LICENSE).
+ */
 class GetTradeHistoryTool implements ToolInterface
 {
+    /**
+     * Get Name.
+     * @return string
+     */
     public function getName(): string
     {
         return 'get_trade_history';
     }
 
+    /**
+     * Get Description.
+     * @param string $lang (default: 'en')
+     * @return string
+     */
     public function getDescription(string $lang = 'en'): string
     {
         return $lang === 'ms'
@@ -20,6 +33,10 @@ class GetTradeHistoryTool implements ToolInterface
             : 'Get trade history for a specific bot or all user bots. Contains buy/sell logs, PNL, and trade performance. Use to analyze existing bot performance.';
     }
 
+    /**
+     * Get Parameters.
+     * @return array
+     */
     public function getParameters(): array
     {
         return [
@@ -33,6 +50,12 @@ class GetTradeHistoryTool implements ToolInterface
         ];
     }
 
+    /**
+     * Execute.
+     * @param array $params
+     * @param int $userId
+     * @return ToolResult
+     */
     public function execute(array $params, int $userId): ToolResult
     {
         $botId = $params['bot_id'] ?? null;
@@ -71,6 +94,11 @@ class GetTradeHistoryTool implements ToolInterface
         }
     }
 
+    /**
+     * Summarize Trades.
+     * @param array $trades
+     * @return array
+     */
     private function summarizeTrades(array $trades): array
     {
         $buys  = array_filter($trades, fn($t) => in_array($t['action'] ?? '', ['BUY', 'DCA_BUY', 'BACKTEST_BUY', 'BACKTEST_DCA_BUY']));

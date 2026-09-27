@@ -5,12 +5,21 @@ namespace Fixzy\Kriptobot\Notifications;
 use Exception;
 use GuzzleHttp\Client;
 
+/**
+ * Class NotificationService - part of the Fixzy Kriptobot project.
+ * This file must retain this notice and its attribution to Fixzy Kriptobot (free use, attribution required - see LICENSE).
+ */
 class NotificationService
 {
     private ?string $telegramToken;
     private ?string $telegramChatId;
     private Client $httpClient;
 
+    /**
+     * __construct.
+     * @param string|null $telegramToken (default: null)
+     * @param string|null $telegramChatId (default: null)
+     */
     public function __construct(?string $telegramToken = null, ?string $telegramChatId = null)
     {
         $this->telegramToken = $telegramToken;
@@ -18,6 +27,11 @@ class NotificationService
         $this->httpClient = new Client(['timeout' => 10.0]);
     }
 
+    /**
+     * Set Telegram Chat Id.
+     * @param string|null $chatId
+     * @return void
+     */
     public function setTelegramChatId(?string $chatId): void
     {
         $this->telegramChatId = $chatId;

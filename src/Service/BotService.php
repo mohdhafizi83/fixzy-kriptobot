@@ -11,11 +11,16 @@ use RuntimeException;
  *
  * All bot CRUD used by the Web UI and the REST API goes through here.
  * Frontend pages must never touch the bots table directly.
+ * This file must retain this notice and its attribution to Fixzy Kriptobot (free use, attribution required - see LICENSE).
  */
 class BotService
 {
     private Connection $db;
 
+    /**
+     * __construct.
+     * @param Connection|null $db (default: null)
+     */
     public function __construct(?Connection $db = null)
     {
         $this->db = $db ?? Database::getConnection();

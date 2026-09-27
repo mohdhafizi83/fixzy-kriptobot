@@ -10,13 +10,26 @@ use Fixzy\Kriptobot\Intelligence\Fetchers\CryptoPanicFetcher;
 use Fixzy\Kriptobot\Intelligence\Fetchers\BlockonomiFetcher;
 use Fixzy\Kriptobot\Config\Config;
 
+/**
+ * Class AnalyzeSentimentTool - part of the Fixzy Kriptobot project.
+ * This file must retain this notice and its attribution to Fixzy Kriptobot (free use, attribution required - see LICENSE).
+ */
 class AnalyzeSentimentTool implements ToolInterface
 {
+    /**
+     * Get Name.
+     * @return string
+     */
     public function getName(): string
     {
         return 'analyze_sentiment';
     }
 
+    /**
+     * Get Description.
+     * @param string $lang (default: 'en')
+     * @return string
+     */
     public function getDescription(string $lang = 'en'): string
     {
         return $lang === 'ms'
@@ -24,6 +37,10 @@ class AnalyzeSentimentTool implements ToolInterface
             : 'Analyze market sentiment for a cryptocurrency pair using verified news from multiple sources and AI analysis. Returns sentiment signal (BULLISH/BEARISH/HOLD) with confidence level.';
     }
 
+    /**
+     * Get Parameters.
+     * @return array
+     */
     public function getParameters(): array
     {
         return [
@@ -38,6 +55,12 @@ class AnalyzeSentimentTool implements ToolInterface
         ];
     }
 
+    /**
+     * Execute.
+     * @param array $params
+     * @param int $userId
+     * @return ToolResult
+     */
     public function execute(array $params, int $userId): ToolResult
     {
         $pair = strtoupper($params['pair'] ?? 'BTC/USDT');

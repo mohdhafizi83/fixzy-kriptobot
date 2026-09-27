@@ -10,13 +10,26 @@ use Fixzy\Kriptobot\Database\AuditLogger;
 use Fixzy\Kriptobot\Database\Database;
 use Fixzy\Kriptobot\Trading\Rules\ExecutionGuardService;
 
+/**
+ * Class RunBacktestTool - part of the Fixzy Kriptobot project.
+ * This file must retain this notice and its attribution to Fixzy Kriptobot (free use, attribution required - see LICENSE).
+ */
 class RunBacktestTool implements ToolInterface
 {
+    /**
+     * Get Name.
+     * @return string
+     */
     public function getName(): string
     {
         return 'run_backtest';
     }
 
+    /**
+     * Get Description.
+     * @param string $lang (default: 'en')
+     * @return string
+     */
     public function getDescription(string $lang = 'en'): string
     {
         return $lang === 'ms'
@@ -24,6 +37,10 @@ class RunBacktestTool implements ToolInterface
             : 'Run backtesting simulation on a trading bot configuration using historical data. Analyzes performance including total trades, win rate, average PNL, max drawdown, and overall returns. Use to validate strategies before live deployment.';
     }
 
+    /**
+     * Get Parameters.
+     * @return array
+     */
     public function getParameters(): array
     {
         return [
@@ -62,6 +79,12 @@ class RunBacktestTool implements ToolInterface
         ];
     }
 
+    /**
+     * Execute.
+     * @param array $params
+     * @param int $userId
+     * @return ToolResult
+     */
     public function execute(array $params, int $userId): ToolResult
     {
         $pair = strtoupper($params['pair'] ?? 'BTC/USDT');

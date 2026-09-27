@@ -13,12 +13,17 @@ namespace Fixzy\Kriptobot\Security;
  *
  * Typical usage:
  *   if ($limiter->tooMany('login:' . $ip, 10, 900)) { ... reject 429 ... }
+ * This file must retain this notice and its attribution to Fixzy Kriptobot (free use, attribution required - see LICENSE).
  */
 class RateLimiter
 {
     private bool $apcu;
     private string $dir;
 
+    /**
+     * __construct.
+     * @param string|null $dir (default: null)
+     */
     public function __construct(?string $dir = null)
     {
         $this->apcu = function_exists('apcu_enabled') && apcu_enabled();

@@ -2,18 +2,31 @@
 
 namespace Fixzy\Kriptobot\Trading\Rules;
 
+/**
+ * Class CooldownRule - part of the Fixzy Kriptobot project.
+ * This file must retain this notice and its attribution to Fixzy Kriptobot (free use, attribution required - see LICENSE).
+ */
 class CooldownRule implements RuleInterface
 {
     private int $lastTradeTimestamp;
     private int $cooldownSeconds;
     private array $lastContext = [];
 
+    /**
+     * __construct.
+     * @param int $lastTradeTimestamp
+     * @param int $cooldownSeconds
+     */
     public function __construct(int $lastTradeTimestamp, int $cooldownSeconds)
     {
         $this->lastTradeTimestamp = $lastTradeTimestamp;
         $this->cooldownSeconds = $cooldownSeconds;
     }
 
+    /**
+     * Evaluate.
+     * @return bool
+     */
     public function evaluate(): bool
     {
         if ($this->lastTradeTimestamp === 0) {
@@ -39,6 +52,10 @@ class CooldownRule implements RuleInterface
         return $passed;
     }
 
+    /**
+     * Get Context.
+     * @return array
+     */
     public function getContext(): array
     {
         return $this->lastContext;

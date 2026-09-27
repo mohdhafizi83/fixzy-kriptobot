@@ -1,4 +1,8 @@
 <?php
+/**
+ * Web UI page of the Fixzy Kriptobot project.
+ * This file must retain this notice and its attribution to Fixzy Kriptobot (free use, attribution required - see LICENSE).
+ */
 // File: public/configure.php — Global settings shell (Phase 1: API-first, no direct DB access).
 // All data is loaded and saved through the v1 REST API by the JavaScript below.
 

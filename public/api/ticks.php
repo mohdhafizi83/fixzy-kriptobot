@@ -1,4 +1,8 @@
 <?php
+/**
+ * Web UI page of the Fixzy Kriptobot project.
+ * This file must retain this notice and its attribution to Fixzy Kriptobot (free use, attribution required - see LICENSE).
+ */
 // Legacy endpoint shim — delegates to the v1 API.
 // New clients should call /api/v1/index.php/market/ticks/{botId}.
 $botId = (int)($_GET['bot_id'] ?? $_GET['botId'] ?? 1);

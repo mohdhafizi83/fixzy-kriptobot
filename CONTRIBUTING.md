@@ -36,6 +36,10 @@ set up a development environment and what we expect from contributions.
 ## Code Style
 
 - Follow [PSR-12](https://www.php-fig.org/psr/psr-12/).
+- Every PHP file carries a header notice: the file is free to use, but the
+  attribution to Fixzy Kriptobot must never be removed. Class-level and
+  function/method PHPDoc blocks (`@param`, `@return`, defaults) are required
+  on all public APIs.
 - All code, comments, documentation, commit messages, and pull request text
   must be in **English**.
 - Never commit secrets: API keys, passwords, tokens, or database files.

@@ -22,6 +22,7 @@ use RuntimeException;
  * - Data Integrity: Binance CSVs may contain empty rows or headers, which we skip
  * - Duplicate Prevention: UPSERT (INSERT IGNORE) ensures no duplicated data
  * - Rate Limiting: Each request is spaced out with sleep() to avoid IP bans
+ * This file must retain this notice and its attribution to Fixzy Kriptobot (free use, attribution required - see LICENSE).
  */
 class BinanceDataIngester
 {
@@ -40,6 +41,10 @@ class BinanceDataIngester
     private Connection $db;
     private string $tmpDir;
 
+    /**
+     * __construct.
+     * @param Connection $db
+     */
     public function __construct(Connection $db)
     {
         $this->db = $db;

@@ -16,6 +16,7 @@ namespace Fixzy\Kriptobot\Trading;
  *   - Trailing Stop Loss (exit on a drop from the peak after TP)
  *
  * @package Fixzy\Kriptobot\Trading
+ * This file must retain this notice and its attribution to Fixzy Kriptobot (free use, attribution required - see LICENSE).
  */
 class TrailingEngine
 {

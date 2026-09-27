@@ -20,6 +20,7 @@ use Fixzy\Kriptobot\Trading\Rules\AiMarketRule;
  *   2. If Custom Conditions are enabled: ALL additional conditions must pass (logical AND)
  *
  * @package Fixzy\Kriptobot\Trading
+ * This file must retain this notice and its attribution to Fixzy Kriptobot (free use, attribution required - see LICENSE).
  */
 class DcaConditionEngine
 {
@@ -170,6 +171,11 @@ class DcaConditionEngine
         };
     }
 
+    /**
+     * Build Rsi Rule.
+     * @param array $condition
+     * @return RsiRule
+     */
     private function buildRsiRule(array $condition): RsiRule
     {
         $tf     = $condition['timeframe'] ?? '1h';
@@ -179,6 +185,11 @@ class DcaConditionEngine
         return new RsiRule($condition['value'], $c, $period);
     }
 
+    /**
+     * Build Bollinger Rule.
+     * @param array $condition
+     * @return BollingerRule
+     */
     private function buildBollingerRule(array $condition): BollingerRule
     {
         $tf     = $condition['timeframe'] ?? '1h';
@@ -189,6 +200,11 @@ class DcaConditionEngine
         return new BollingerRule($condition['value'], $c, $period, $stddev);
     }
 
+    /**
+     * Build Qfl Rule.
+     * @param array $condition
+     * @return QflRule
+     */
     private function buildQflRule(array $condition): QflRule
     {
         $tf = $condition['timeframe'] ?? '1h';
@@ -197,6 +213,11 @@ class DcaConditionEngine
         return new QflRule($condition['value'], $c);
     }
 
+    /**
+     * Resolve Candles.
+     * @param string $timeframe
+     * @return array
+     */
     private function resolveCandles(string $timeframe): array
     {
         return $this->candles[$timeframe] ?? (isset($this->candles[0]) ? $this->candles : []);

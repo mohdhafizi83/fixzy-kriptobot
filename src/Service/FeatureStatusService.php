@@ -22,6 +22,7 @@ use Fixzy\Kriptobot\Database\Database;
  * Statuses:
  *   enabled   — configured AND verified working (last verification passed)
  *   disabled  — not configured, or verification failed (see `reason`)
+ * This file must retain this notice and its attribution to Fixzy Kriptobot (free use, attribution required - see LICENSE).
  */
 class FeatureStatusService
 {
@@ -56,12 +57,20 @@ class FeatureStatusService
 
     private Connection $db;
 
+    /**
+     * __construct.
+     * @param Connection|null $db (default: null)
+     */
     public function __construct(?Connection $db = null)
     {
         $this->db = $db ?? Database::getConnection();
         $this->ensureTable();
     }
 
+    /**
+     * Ensure Table.
+     * @return void
+     */
     public function ensureTable(): void
     {
         $this->db->executeStatement(
@@ -106,6 +115,11 @@ class FeatureStatusService
         return $out;
     }
 
+    /**
+     * Is Enabled.
+     * @param string $feature
+     * @return bool
+     */
     public function isEnabled(string $feature): bool
     {
         $row = $this->db->fetchAssociative(
@@ -115,6 +129,11 @@ class FeatureStatusService
         return ($row['status'] ?? 'disabled') === 'enabled';
     }
 
+    /**
+     * Get Status.
+     * @param string $feature
+     * @return array
+     */
     public function getStatus(string $feature): array
     {
         return $this->getAll()[$feature] ?? [
@@ -124,6 +143,13 @@ class FeatureStatusService
         ];
     }
 
+    /**
+     * Save.
+     * @param string $feature
+     * @param bool $ok
+     * @param string $reason
+     * @return void
+     */
     private function save(string $feature, bool $ok, string $reason): void
     {
         $now = date('Y-m-d H:i:s');
@@ -240,6 +266,11 @@ class FeatureStatusService
         }
     }
 
+    /**
+     * Verify Cryptopanic.
+     * @param string $apiKey
+     * @return bool
+     */
     public function verifyCryptopanic(string $apiKey): bool
     {
         if ($apiKey === '') {
@@ -263,6 +294,12 @@ class FeatureStatusService
         }
     }
 
+    /**
+     * Verify Telegram.
+     * @param string $botToken
+     * @param string|null $chatId
+     * @return bool
+     */
     public function verifyTelegram(string $botToken, ?string $chatId): bool
     {
         if ($botToken === '') {

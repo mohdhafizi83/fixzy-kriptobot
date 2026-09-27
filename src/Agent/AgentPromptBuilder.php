@@ -2,20 +2,38 @@
 
 namespace Fixzy\Kriptobot\Agent;
 
+/**
+ * Class AgentPromptBuilder - part of the Fixzy Kriptobot project.
+ * This file must retain this notice and its attribution to Fixzy Kriptobot (free use, attribution required - see LICENSE).
+ */
 class AgentPromptBuilder
 {
     private string $lang = 'en';
 
+    /**
+     * __construct.
+     * @param string $lang (default: 'en')
+     */
     public function __construct(string $lang = 'en')
     {
         $this->lang = $lang;
     }
 
+    /**
+     * Set Language.
+     * @param string $lang
+     * @return void
+     */
     public function setLanguage(string $lang): void
     {
         $this->lang = $lang;
     }
 
+    /**
+     * Build System Prompt.
+     * @param string $objective (default: '')
+     * @return string
+     */
     public function buildSystemPrompt(string $objective = ''): string
     {
         $objectiveContext = '';

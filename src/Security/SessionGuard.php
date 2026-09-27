@@ -13,6 +13,7 @@ use Fixzy\Kriptobot\Config\Config;
  * - Idle timeout (default 8 hours)
  * - Session ID regeneration on login (fixation protection)
  * - CSRF token helpers
+ * This file must retain this notice and its attribution to Fixzy Kriptobot (free use, attribution required - see LICENSE).
  */
 class SessionGuard
 {
@@ -20,6 +21,10 @@ class SessionGuard
 
     public const IDLE_TIMEOUT_SECONDS = 28800; // 8 hours
 
+    /**
+     * Start.
+     * @return void
+     */
     public static function start(): void
     {
         if (self::$started) {
@@ -57,6 +62,10 @@ class SessionGuard
         $_SESSION['last_activity'] = time();
     }
 
+    /**
+     * Is Authenticated.
+     * @return bool
+     */
     public static function isAuthenticated(): bool
     {
         return !empty($_SESSION['user_id']);
@@ -111,6 +120,10 @@ class SessionGuard
         $_SESSION['last_activity'] = time();
     }
 
+    /**
+     * Logout.
+     * @return void
+     */
     public static function logout(): void
     {
         $_SESSION = [];
@@ -124,6 +137,10 @@ class SessionGuard
         self::$started = false;
     }
 
+    /**
+     * Csrf Token.
+     * @return string
+     */
     public static function csrfToken(): string
     {
         if (empty($_SESSION['csrf_token'])) {
@@ -132,11 +149,20 @@ class SessionGuard
         return (string)$_SESSION['csrf_token'];
     }
 
+    /**
+     * Verify Csrf.
+     * @param string $token
+     * @return bool
+     */
     public static function verifyCsrf(string $token): bool
     {
         return !empty($_SESSION['csrf_token']) && hash_equals((string)$_SESSION['csrf_token'], $token);
     }
 
+    /**
+     * Is Https.
+     * @return bool
+     */
     private static function isHttps(): bool
     {
         if (!empty($_SERVER['HTTPS']) && strtolower((string)$_SERVER['HTTPS']) !== 'off') {

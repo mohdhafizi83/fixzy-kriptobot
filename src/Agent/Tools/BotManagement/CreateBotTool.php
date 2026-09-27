@@ -7,13 +7,26 @@ use Fixzy\Kriptobot\Agent\Tools\ToolResult;
 use Fixzy\Kriptobot\Agent\ConfigGenerator;
 use Fixzy\Kriptobot\Database\Database;
 
+/**
+ * Class CreateBotTool - part of the Fixzy Kriptobot project.
+ * This file must retain this notice and its attribution to Fixzy Kriptobot (free use, attribution required - see LICENSE).
+ */
 class CreateBotTool implements ToolInterface
 {
+    /**
+     * Get Name.
+     * @return string
+     */
     public function getName(): string
     {
         return 'create_bot';
     }
 
+    /**
+     * Get Description.
+     * @param string $lang (default: 'en')
+     * @return string
+     */
     public function getDescription(string $lang = 'en'): string
     {
         return $lang === 'ms'
@@ -21,6 +34,10 @@ class CreateBotTool implements ToolInterface
             : 'Create a new trading bot with the proposed configuration. Bot is saved in DRAFT (inactive) status until approved by user. Requires full bot configuration in JSON format. Use this ONLY after complete backtesting and analysis.';
     }
 
+    /**
+     * Get Parameters.
+     * @return array
+     */
     public function getParameters(): array
     {
         return [
@@ -38,6 +55,12 @@ class CreateBotTool implements ToolInterface
         ];
     }
 
+    /**
+     * Execute.
+     * @param array $params
+     * @param int $userId
+     * @return ToolResult
+     */
     public function execute(array $params, int $userId): ToolResult
     {
         $config = $params['config'] ?? [];

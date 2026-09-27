@@ -10,12 +10,18 @@ use RuntimeException;
 /**
  * UserService — backend-owned access to the users table (profile, environment,
  * global filters, recovery mode) and user_api_keys.
+ * This file must retain this notice and its attribution to Fixzy Kriptobot (free use, attribution required - see LICENSE).
  */
 class UserService
 {
     private Connection $db;
     private EncryptionService $encryption;
 
+    /**
+     * __construct.
+     * @param Connection|null $db (default: null)
+     * @param EncryptionService|null $encryption (default: null)
+     */
     public function __construct(?Connection $db = null, ?EncryptionService $encryption = null)
     {
         $this->db = $db ?? Database::getConnection();
@@ -116,6 +122,12 @@ class UserService
         return $val !== null && $val !== false ? (string)$val : null;
     }
 
+    /**
+     * Update Global Filters.
+     * @param int $userId
+     * @param string $filtersJson
+     * @return void
+     */
     public function updateGlobalFilters(int $userId, string $filtersJson): void
     {
         // Validate JSON before persisting.
@@ -129,11 +141,22 @@ class UserService
         );
     }
 
+    /**
+     * Get Smart Recovery Mode.
+     * @param int $userId
+     * @return bool
+     */
     public function getSmartRecoveryMode(int $userId): bool
     {
         return (bool)$this->db->fetchOne("SELECT smart_recovery_mode FROM users WHERE id = ?", [$userId]);
     }
 
+    /**
+     * Update Smart Recovery Mode.
+     * @param int $userId
+     * @param bool $enabled
+     * @return void
+     */
     public function updateSmartRecoveryMode(int $userId, bool $enabled): void
     {
         $this->db->executeStatement(

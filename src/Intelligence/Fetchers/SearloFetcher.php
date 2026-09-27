@@ -6,6 +6,10 @@ use Fixzy\Kriptobot\Intelligence\Contracts\NewsFetcherInterface;
 use GuzzleHttp\Client;
 use Exception;
 
+/**
+ * Class SearloFetcher - part of the Fixzy Kriptobot project.
+ * This file must retain this notice and its attribution to Fixzy Kriptobot (free use, attribution required - see LICENSE).
+ */
 class SearloFetcher implements NewsFetcherInterface
 {
     private string $apiKey;
@@ -25,11 +29,20 @@ class SearloFetcher implements NewsFetcherInterface
         ]);
     }
 
+    /**
+     * Get Source Name.
+     * @return string
+     */
     public function getSourceName(): string
     {
         return 'Google News (Searlo SERP)';
     }
 
+    /**
+     * Fetch Latest News.
+     * @param string $coinPair
+     * @return array
+     */
     public function fetchLatestNews(string $coinPair): array
     {
         // Extract the symbol (e.g. BTC/USDT -> Bitcoin / BTC)

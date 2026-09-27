@@ -4,6 +4,7 @@ namespace Fixzy\Kriptobot\Http;
 
 /**
  * HttpRequest — small helpers for reading the incoming API request.
+ * This file must retain this notice and its attribution to Fixzy Kriptobot (free use, attribution required - see LICENSE).
  */
 class HttpRequest
 {

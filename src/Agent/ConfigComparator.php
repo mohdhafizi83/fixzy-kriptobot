@@ -2,6 +2,10 @@
 
 namespace Fixzy\Kriptobot\Agent;
 
+/**
+ * Class ConfigComparator - part of the Fixzy Kriptobot project.
+ * This file must retain this notice and its attribution to Fixzy Kriptobot (free use, attribution required - see LICENSE).
+ */
 class ConfigComparator
 {
     /**
@@ -127,6 +131,11 @@ class ConfigComparator
         return "<table class='w-full text-sm border-collapse'>{$rows}</table>";
     }
 
+    /**
+     * Format Value.
+     * @param $value
+     * @return string
+     */
     private function formatValue($value): string
     {
         if (is_bool($value)) {
@@ -141,6 +150,11 @@ class ConfigComparator
         return htmlspecialchars((string)$value);
     }
 
+    /**
+     * Get Nested.
+     * @param array $data
+     * @param string $path
+     */
     private function getNested(array $data, string $path)
     {
         $keys = explode('.', $path);

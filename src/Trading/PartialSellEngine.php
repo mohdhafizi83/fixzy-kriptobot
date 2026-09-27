@@ -4,6 +4,10 @@ namespace Fixzy\Kriptobot\Trading;
 
 use Fixzy\Kriptobot\Trading\Rules\RuleInterface;
 
+/**
+ * Class PartialSellEngine - part of the Fixzy Kriptobot project.
+ * This file must retain this notice and its attribution to Fixzy Kriptobot (free use, attribution required - see LICENSE).
+ */
 class PartialSellEngine
 {
     private array $steps = [];

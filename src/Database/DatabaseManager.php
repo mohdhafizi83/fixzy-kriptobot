@@ -6,10 +6,18 @@ use Doctrine\DBAL\DriverManager;
 use Doctrine\DBAL\Connection;
 use Exception;
 
+/**
+ * Class DatabaseManager - part of the Fixzy Kriptobot project.
+ * This file must retain this notice and its attribution to Fixzy Kriptobot (free use, attribution required - see LICENSE).
+ */
 class DatabaseManager
 {
     private Connection $connection;
 
+    /**
+     * __construct.
+     * @param array $config
+     */
     public function __construct(array $config)
     {
         try {
@@ -29,6 +37,10 @@ class DatabaseManager
         }
     }
 
+    /**
+     * Get Connection.
+     * @return Connection
+     */
     public function getConnection(): Connection
     {
         return $this->connection;

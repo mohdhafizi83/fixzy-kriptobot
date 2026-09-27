@@ -6,11 +6,19 @@ use Fixzy\Kriptobot\Intelligence\Contracts\NewsFetcherInterface;
 use GuzzleHttp\Client;
 use Exception;
 
+/**
+ * Class CryptoPanicFetcher - part of the Fixzy Kriptobot project.
+ * This file must retain this notice and its attribution to Fixzy Kriptobot (free use, attribution required - see LICENSE).
+ */
 class CryptoPanicFetcher implements NewsFetcherInterface
 {
     private string $apiKey;
     private Client $httpClient;
 
+    /**
+     * __construct.
+     * @param string $apiKey
+     */
     public function __construct(string $apiKey)
     {
         $this->apiKey = $apiKey;
@@ -20,11 +28,20 @@ class CryptoPanicFetcher implements NewsFetcherInterface
         ]);
     }
 
+    /**
+     * Get Source Name.
+     * @return string
+     */
     public function getSourceName(): string
     {
         return 'CryptoPanic';
     }
 
+    /**
+     * Fetch Latest News.
+     * @param string $coinPair
+     * @return array
+     */
     public function fetchLatestNews(string $coinPair): array
     {
         $currency = explode('/', $coinPair)[0];

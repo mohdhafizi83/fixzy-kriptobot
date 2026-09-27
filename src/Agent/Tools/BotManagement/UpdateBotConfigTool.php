@@ -6,13 +6,26 @@ use Fixzy\Kriptobot\Agent\Tools\ToolInterface;
 use Fixzy\Kriptobot\Agent\Tools\ToolResult;
 use Fixzy\Kriptobot\Database\Database;
 
+/**
+ * Class UpdateBotConfigTool - part of the Fixzy Kriptobot project.
+ * This file must retain this notice and its attribution to Fixzy Kriptobot (free use, attribution required - see LICENSE).
+ */
 class UpdateBotConfigTool implements ToolInterface
 {
+    /**
+     * Get Name.
+     * @return string
+     */
     public function getName(): string
     {
         return 'update_bot_config';
     }
 
+    /**
+     * Get Description.
+     * @param string $lang (default: 'en')
+     * @return string
+     */
     public function getDescription(string $lang = 'en'): string
     {
         return $lang === 'ms'
@@ -20,6 +33,10 @@ class UpdateBotConfigTool implements ToolInterface
             : 'Update configuration of an existing trading bot. Can modify parameters like target profit, cut loss, DCA, and entry conditions. Changes are saved but may require user approval before activation. Use after performance analysis.';
     }
 
+    /**
+     * Get Parameters.
+     * @return array
+     */
     public function getParameters(): array
     {
         return [
@@ -35,6 +52,12 @@ class UpdateBotConfigTool implements ToolInterface
         ];
     }
 
+    /**
+     * Execute.
+     * @param array $params
+     * @param int $userId
+     * @return ToolResult
+     */
     public function execute(array $params, int $userId): ToolResult
     {
         $botId = (int)($params['bot_id'] ?? 0);

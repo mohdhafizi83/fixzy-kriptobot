@@ -4,6 +4,7 @@ namespace Fixzy\Kriptobot\Config;
 /**
  * Application configuration — single source of truth.
  * Loads the .env file once. All access goes through Config::get().
+ * This file must retain this notice and its attribution to Fixzy Kriptobot (free use, attribution required - see LICENSE).
  */
 class Config
 {
@@ -21,6 +22,10 @@ class Config
         'CRYPTOPANIC_API_KEY'      => '',
     ];
 
+    /**
+     * Load.
+     * @return void
+     */
     public static function load(): void
     {
         if (self::$loaded) return;
@@ -38,6 +43,10 @@ class Config
         self::$loaded = true;
     }
 
+    /**
+     * Do Load.
+     * @return void
+     */
     private static function doLoad(): void
     {
         // KRIPTOBOT_ENV_FILE overrides the .env location (used by tests).
@@ -64,6 +73,12 @@ class Config
         self::$loaded = true;
     }
 
+    /**
+     * Get.
+     * @param string $key
+     * @param string $default (default: '')
+     * @return string
+     */
     public static function get(string $key, string $default = ''): string
     {
         self::load();
@@ -161,6 +176,10 @@ class Config
         return ['api_key' => $apiKey, 'base_url' => $baseUrl, 'model' => $model];
     }
 
+    /**
+     * Is Debug.
+     * @return bool
+     */
     public static function isDebug(): bool
     {
         return self::get('APP_ENV') === 'development';

@@ -15,11 +15,16 @@ use PHPUnit\Framework\TestCase;
  * Connection::executeStatement() + lastInsertId().
  *
  * Uses a temporary SQLite database with the real schema.
+ * This file must retain this notice and its attribution to Fixzy Kriptobot (free use, attribution required - see LICENSE).
  */
 class AgentDatabaseTest extends TestCase
 {
     private Connection $db;
 
+    /**
+     * Set Up.
+     * @return void
+     */
     protected function setUp(): void
     {
         $this->db = DriverManager::getConnection([
@@ -90,11 +95,19 @@ class AgentDatabaseTest extends TestCase
         )");
     }
 
+    /**
+     * Tear Down.
+     * @return void
+     */
     protected function tearDown(): void
     {
         $this->db->close();
     }
 
+    /**
+     * Test Session Create Uses Execute Statement And Returns Id.
+     * @return void
+     */
     public function testSessionCreateUsesExecuteStatementAndReturnsId(): void
     {
         // Replicate the exact write pattern from AgentSession::create()
@@ -113,6 +126,10 @@ class AgentDatabaseTest extends TestCase
         $this->assertSame('active', $row['status']);
     }
 
+    /**
+     * Test Message Insert Round Trip.
+     * @return void
+     */
     public function testMessageInsertRoundTrip(): void
     {
         $this->db->executeStatement(
@@ -134,6 +151,10 @@ class AgentDatabaseTest extends TestCase
         $this->assertSame(42, (int) $row['token_usage']);
     }
 
+    /**
+     * Test Decision Insert With Nulls.
+     * @return void
+     */
     public function testDecisionInsertWithNulls(): void
     {
         $this->db->executeStatement(
@@ -151,6 +172,10 @@ class AgentDatabaseTest extends TestCase
         $this->assertNull($row['bot_id']);
     }
 
+    /**
+     * Test Bot Insert With Agent Columns.
+     * @return void
+     */
     public function testBotInsertWithAgentColumns(): void
     {
         // Replicates CreateBotTool write pattern (requires migrated schema)

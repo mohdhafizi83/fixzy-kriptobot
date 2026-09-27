@@ -13,6 +13,7 @@ use Exception;
  * Legacy values written by older versions are still decryptable. New values are
  * always authenticated: any tampering with IV or ciphertext is detected and
  * rejected before decryption.
+ * This file must retain this notice and its attribution to Fixzy Kriptobot (free use, attribution required - see LICENSE).
  */
 class EncryptionService
 {
@@ -76,6 +77,11 @@ class EncryptionService
         return $this->decryptLegacy($encryptedData);
     }
 
+    /**
+     * Decrypt V2.
+     * @param string $encoded
+     * @return string
+     */
     private function decryptV2(string $encoded): string
     {
         $data = base64_decode($encoded, true);
@@ -104,6 +110,11 @@ class EncryptionService
         return $decrypted;
     }
 
+    /**
+     * Decrypt Legacy.
+     * @param string $encryptedData
+     * @return string
+     */
     private function decryptLegacy(string $encryptedData): string
     {
         $data = base64_decode($encryptedData);

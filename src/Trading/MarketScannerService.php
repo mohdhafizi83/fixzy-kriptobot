@@ -4,10 +4,18 @@ namespace Fixzy\Kriptobot\Trading;
 
 use Exception;
 
+/**
+ * Class MarketScannerService - part of the Fixzy Kriptobot project.
+ * This file must retain this notice and its attribution to Fixzy Kriptobot (free use, attribution required - see LICENSE).
+ */
 class MarketScannerService
 {
     private ExchangeService $exchangeService;
 
+    /**
+     * __construct.
+     * @param ExchangeService $exchangeService
+     */
     public function __construct(ExchangeService $exchangeService)
     {
         $this->exchangeService = $exchangeService;

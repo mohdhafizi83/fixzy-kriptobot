@@ -8,10 +8,17 @@ use DOMDocument;
 use DOMXPath;
 use Exception;
 
+/**
+ * Class BlockonomiFetcher - part of the Fixzy Kriptobot project.
+ * This file must retain this notice and its attribution to Fixzy Kriptobot (free use, attribution required - see LICENSE).
+ */
 class BlockonomiFetcher implements NewsFetcherInterface
 {
     private Client $httpClient;
 
+    /**
+     * __construct.
+     */
     public function __construct()
     {
         $this->httpClient = new Client([
@@ -26,11 +33,20 @@ class BlockonomiFetcher implements NewsFetcherInterface
         ]);
     }
 
+    /**
+     * Get Source Name.
+     * @return string
+     */
     public function getSourceName(): string
     {
         return 'Blockonomi Aggregator';
     }
 
+    /**
+     * Fetch Latest News.
+     * @param string $coinPair
+     * @return array
+     */
     public function fetchLatestNews(string $coinPair): array
     {
         // Extract the symbol (e.g. BTC/USDT -> BTC)

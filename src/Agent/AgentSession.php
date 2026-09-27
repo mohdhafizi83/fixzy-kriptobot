@@ -5,15 +5,29 @@ namespace Fixzy\Kriptobot\Agent;
 use Doctrine\DBAL\Connection;
 use Fixzy\Kriptobot\Database\Database;
 
+/**
+ * Class AgentSession - part of the Fixzy Kriptobot project.
+ * This file must retain this notice and its attribution to Fixzy Kriptobot (free use, attribution required - see LICENSE).
+ */
 class AgentSession
 {
     private Connection $db;
 
+    /**
+     * __construct.
+     */
     public function __construct()
     {
         $this->db = Database::getConnection();
     }
 
+    /**
+     * Create.
+     * @param int $userId
+     * @param string|null $title (default: null)
+     * @param string $lang (default: 'en')
+     * @return int
+     */
     public function create(int $userId, ?string $title = null, string $lang = 'en'): int
     {
         $this->db->executeStatement(
@@ -36,6 +50,11 @@ class AgentSession
         return (int) $this->db->lastInsertId();
     }
 
+    /**
+     * Get.
+     * @param int $sessionId
+     * @return array|null
+     */
     public function get(int $sessionId): ?array
     {
         $row = $this->db->executeQuery(
@@ -48,6 +67,11 @@ class AgentSession
         return $row;
     }
 
+    /**
+     * Get Active Session.
+     * @param int $userId
+     * @return array|null
+     */
     public function getActiveSession(int $userId): ?array
     {
         $row = $this->db->executeQuery(
@@ -61,6 +85,11 @@ class AgentSession
         return $row;
     }
 
+    /**
+     * Get Sessions For User.
+     * @param int $userId
+     * @return array
+     */
     public function getSessionsForUser(int $userId): array
     {
         return $this->db->executeQuery(
@@ -69,6 +98,12 @@ class AgentSession
         )->fetchAllAssociative();
     }
 
+    /**
+     * Update Context.
+     * @param int $sessionId
+     * @param array $context
+     * @return void
+     */
     public function updateContext(int $sessionId, array $context): void
     {
         $this->db->update('agent_sessions', [
@@ -76,6 +111,12 @@ class AgentSession
         ], ['id' => $sessionId]);
     }
 
+    /**
+     * Update Title.
+     * @param int $sessionId
+     * @param string $title
+     * @return void
+     */
     public function updateTitle(int $sessionId, string $title): void
     {
         $this->db->update('agent_sessions', [
@@ -83,6 +124,11 @@ class AgentSession
         ], ['id' => $sessionId]);
     }
 
+    /**
+     * Archive.
+     * @param int $sessionId
+     * @return void
+     */
     public function archive(int $sessionId): void
     {
         $this->db->update('agent_sessions', [
@@ -122,6 +168,16 @@ class AgentSession
         return $messages;
     }
 
+    /**
+     * Add Message.
+     * @param int $sessionId
+     * @param string $role
+     * @param string $content
+     * @param array|null $toolCalls (default: null)
+     * @param array|null $toolResults (default: null)
+     * @param int $tokenUsage (default: 0)
+     * @return int
+     */
     public function addMessage(int $sessionId, string $role, string $content, ?array $toolCalls = null, ?array $toolResults = null, int $tokenUsage = 0): int
     {
         $this->db->executeStatement(
@@ -143,6 +199,12 @@ class AgentSession
         return $msgId;
     }
 
+    /**
+     * Get Messages.
+     * @param int $sessionId
+     * @param int $limit (default: 50)
+     * @return array
+     */
     public function getMessages(int $sessionId, int $limit = 50): array
     {
         return $this->db->executeQuery(
@@ -151,6 +213,11 @@ class AgentSession
         )->fetchAllAssociative();
     }
 
+    /**
+     * Touch Session.
+     * @param int $sessionId
+     * @return void
+     */
     private function touchSession(int $sessionId): void
     {
         $this->db->executeStatement(

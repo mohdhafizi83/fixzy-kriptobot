@@ -9,6 +9,10 @@ use Fixzy\Kriptobot\Database\AuditLogger;
 use Fixzy\Kriptobot\Database\Database;
 use Fixzy\Kriptobot\Config\Config;
 
+/**
+ * Class AgentOrchestrator - part of the Fixzy Kriptobot project.
+ * This file must retain this notice and its attribution to Fixzy Kriptobot (free use, attribution required - see LICENSE).
+ */
 class AgentOrchestrator
 {
     private AgentLlmClient $llmClient;
@@ -21,6 +25,12 @@ class AgentOrchestrator
     private int $maxIterations = 10;
     private string $lang = 'en';
 
+    /**
+     * __construct.
+     * @param string $aiApiKey
+     * @param string $model
+     * @param string $baseUrl
+     */
     public function __construct(
         string $aiApiKey,
         string $model,
@@ -37,12 +47,22 @@ class AgentOrchestrator
         $this->registerDefaultTools();
     }
 
+    /**
+     * Set Language.
+     * @param string $lang
+     * @return void
+     */
     public function setLanguage(string $lang): void
     {
         $this->lang = $lang === 'ms' ? 'ms' : 'en';
         $this->promptBuilder->setLanguage($this->lang);
     }
 
+    /**
+     * Set Max Iterations.
+     * @param int $max
+     * @return void
+     */
     public function setMaxIterations(int $max): void
     {
         $this->maxIterations = $max;
@@ -325,6 +345,11 @@ class AgentOrchestrator
         ];
     }
 
+    /**
+     * Detect Language.
+     * @param string $text
+     * @return void
+     */
     private function detectLanguage(string $text): void
     {
         $msKeywords = ['i', 'you', 'create', 'bot', 'trading', 'risk', 'low', 'high',
@@ -342,6 +367,11 @@ class AgentOrchestrator
         $this->setLanguage($msCount >= 3 ? 'ms' : 'en');
     }
 
+    /**
+     * Error Response.
+     * @param string $message
+     * @return array
+     */
     private function errorResponse(string $message): array
     {
         return [

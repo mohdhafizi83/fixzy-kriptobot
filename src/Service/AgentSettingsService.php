@@ -10,6 +10,7 @@ use Fixzy\Kriptobot\Database\Database;
  *
  * The read path (with defaults) lives in ApprovalManager::getAgentSettings();
  * this service owns the write path used by the Web UI and the REST API.
+ * This file must retain this notice and its attribution to Fixzy Kriptobot (free use, attribution required - see LICENSE).
  */
 class AgentSettingsService
 {
@@ -20,6 +21,10 @@ class AgentSettingsService
         'create_bot', 'update_config', 'activate_bot', 'deactivate_bot',
     ];
 
+    /**
+     * __construct.
+     * @param Connection|null $db (default: null)
+     */
     public function __construct(?Connection $db = null)
     {
         $this->db = $db ?? Database::getConnection();

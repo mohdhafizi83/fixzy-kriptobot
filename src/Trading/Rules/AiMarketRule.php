@@ -13,6 +13,7 @@ namespace Fixzy\Kriptobot\Trading\Rules;
  *  - expected BUY  passes when the AI signal is BUY
  *  - expected SELL passes when the AI signal is SELL
  *  - EMPTY signal never passes (condition not met → bot waits)
+ * This file must retain this notice and its attribution to Fixzy Kriptobot (free use, attribution required - see LICENSE).
  */
 class AiMarketRule implements RuleInterface
 {
@@ -20,12 +21,21 @@ class AiMarketRule implements RuleInterface
     private string $actualSignal;
     private array $lastContext = [];
 
+    /**
+     * __construct.
+     * @param string $expectedSignal
+     * @param string $actualSignal
+     */
     public function __construct(string $expectedSignal, string $actualSignal)
     {
         $this->expectedSignal = strtoupper(trim($expectedSignal));
         $this->actualSignal   = strtoupper(trim($actualSignal));
     }
 
+    /**
+     * Evaluate.
+     * @return bool
+     */
     public function evaluate(): bool
     {
         $passed = $this->actualSignal !== '' && $this->actualSignal === $this->expectedSignal;
@@ -43,6 +53,10 @@ class AiMarketRule implements RuleInterface
         return $passed;
     }
 
+    /**
+     * Get Context.
+     * @return array
+     */
     public function getContext(): array
     {
         return $this->lastContext;

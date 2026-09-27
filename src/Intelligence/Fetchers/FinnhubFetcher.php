@@ -6,6 +6,10 @@ use Fixzy\Kriptobot\Intelligence\Contracts\NewsFetcherInterface;
 use GuzzleHttp\Client;
 use Exception;
 
+/**
+ * Class FinnhubFetcher - part of the Fixzy Kriptobot project.
+ * This file must retain this notice and its attribution to Fixzy Kriptobot (free use, attribution required - see LICENSE).
+ */
 class FinnhubFetcher implements NewsFetcherInterface
 {
     private string $apiKey;
@@ -24,11 +28,20 @@ class FinnhubFetcher implements NewsFetcherInterface
         ]);
     }
 
+    /**
+     * Get Source Name.
+     * @return string
+     */
     public function getSourceName(): string
     {
         return 'TradFi Macroeconomics (Finnhub)';
     }
 
+    /**
+     * Fetch Latest News.
+     * @param string $coinPair
+     * @return array
+     */
     public function fetchLatestNews(string $coinPair): array
     {
         

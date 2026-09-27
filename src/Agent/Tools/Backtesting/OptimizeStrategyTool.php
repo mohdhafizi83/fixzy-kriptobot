@@ -10,13 +10,26 @@ use Fixzy\Kriptobot\Database\AuditLogger;
 use Fixzy\Kriptobot\Database\Database;
 use Fixzy\Kriptobot\Trading\Rules\ExecutionGuardService;
 
+/**
+ * Class OptimizeStrategyTool - part of the Fixzy Kriptobot project.
+ * This file must retain this notice and its attribution to Fixzy Kriptobot (free use, attribution required - see LICENSE).
+ */
 class OptimizeStrategyTool implements ToolInterface
 {
+    /**
+     * Get Name.
+     * @return string
+     */
     public function getName(): string
     {
         return 'optimize_strategy';
     }
 
+    /**
+     * Get Description.
+     * @param string $lang (default: 'en')
+     * @return string
+     */
     public function getDescription(string $lang = 'en'): string
     {
         return $lang === 'ms'
@@ -24,6 +37,10 @@ class OptimizeStrategyTool implements ToolInterface
             : 'Run strategy parameter optimization through grid search. Tests multiple parameter combinations (target profit, cut loss, DCA steps, DCA volume scale, trailing) and returns top 5 configurations ranked by metrics (win rate, Sharpe ratio, total PNL). Use after initial backtest.';
     }
 
+    /**
+     * Get Parameters.
+     * @return array
+     */
     public function getParameters(): array
     {
         return [
@@ -47,6 +64,12 @@ class OptimizeStrategyTool implements ToolInterface
         ];
     }
 
+    /**
+     * Execute.
+     * @param array $params
+     * @param int $userId
+     * @return ToolResult
+     */
     public function execute(array $params, int $userId): ToolResult
     {
         $pair = strtoupper($params['pair'] ?? 'BTC/USDT');
@@ -148,6 +171,14 @@ class OptimizeStrategyTool implements ToolInterface
         }
     }
 
+    /**
+     * Build Parameter Grid.
+     * @param string $riskProfile
+     * @param bool $optimizeTP
+     * @param bool $optimizeCL
+     * @param bool $optimizeDCA
+     * @return array
+     */
     private function buildParameterGrid(
         string $riskProfile,
         bool $optimizeTP,
@@ -209,6 +240,12 @@ class OptimizeStrategyTool implements ToolInterface
         return $grid;
     }
 
+    /**
+     * Estimate Sharpe.
+     * @param array $trades
+     * @param float $capital
+     * @return float
+     */
     private function estimateSharpe(array $trades, float $capital): float
     {
         if (count($trades) < 3) return 0;
@@ -229,6 +266,15 @@ class OptimizeStrategyTool implements ToolInterface
         return $std > 0 ? $mean / $std : 0;
     }
 
+    /**
+     * Calculate Score.
+     * @param float $winRate
+     * @param float $totalPnl
+     * @param float $drawdown
+     * @param float $sharpe
+     * @param int $tradesCount
+     * @return float
+     */
     private function calculateScore(
         float $winRate,
         float $totalPnl,

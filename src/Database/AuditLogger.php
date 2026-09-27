@@ -5,11 +5,19 @@ namespace Fixzy\Kriptobot\Database;
 use Doctrine\DBAL\Connection;
 use Exception;
 
+/**
+ * Class AuditLogger - part of the Fixzy Kriptobot project.
+ * This file must retain this notice and its attribution to Fixzy Kriptobot (free use, attribution required - see LICENSE).
+ */
 class AuditLogger
 {
     private Connection $db;
     private string $fallbackLogPath;
 
+    /**
+     * __construct.
+     * @param Connection $db
+     */
     public function __construct(Connection $db)
     {
         $this->db = $db;

@@ -1,4 +1,8 @@
 <?php
+/**
+ * Web UI page of the Fixzy Kriptobot project.
+ * This file must retain this notice and its attribution to Fixzy Kriptobot (free use, attribution required - see LICENSE).
+ */
 // login.php — real credential login (no more auto-login).
 //
 // Security: CSRF-protected form, rate limited per IP (10 attempts / 15 min),

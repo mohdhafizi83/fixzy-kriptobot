@@ -1,4 +1,8 @@
 <?php
+/**
+ * Web UI page of the Fixzy Kriptobot project.
+ * This file must retain this notice and its attribution to Fixzy Kriptobot (free use, attribution required - see LICENSE).
+ */
 require_once dirname(__DIR__) . '/vendor/autoload.php';
 use Fixzy\Kriptobot\Database\Database;
 use Fixzy\Kriptobot\Database\AuditLogger;

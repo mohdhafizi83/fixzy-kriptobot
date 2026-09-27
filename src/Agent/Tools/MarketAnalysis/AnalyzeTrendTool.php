@@ -7,13 +7,26 @@ use Fixzy\Kriptobot\Agent\Tools\ToolResult;
 use Fixzy\Kriptobot\Backtest\BinanceDataIngester;
 use Fixzy\Kriptobot\Database\Database;
 
+/**
+ * Class AnalyzeTrendTool - part of the Fixzy Kriptobot project.
+ * This file must retain this notice and its attribution to Fixzy Kriptobot (free use, attribution required - see LICENSE).
+ */
 class AnalyzeTrendTool implements ToolInterface
 {
+    /**
+     * Get Name.
+     * @return string
+     */
     public function getName(): string
     {
         return 'analyze_trend';
     }
 
+    /**
+     * Get Description.
+     * @param string $lang (default: 'en')
+     * @return string
+     */
     public function getDescription(string $lang = 'en'): string
     {
         return $lang === 'ms'
@@ -21,6 +34,10 @@ class AnalyzeTrendTool implements ToolInterface
             : 'Analyze market trend direction using multiple timeframes. Identifies bullish, bearish, or sideways trends based on EMA, price structure (higher highs/lows), and trend strength.';
     }
 
+    /**
+     * Get Parameters.
+     * @return array
+     */
     public function getParameters(): array
     {
         return [
@@ -37,6 +54,12 @@ class AnalyzeTrendTool implements ToolInterface
         ];
     }
 
+    /**
+     * Execute.
+     * @param array $params
+     * @param int $userId
+     * @return ToolResult
+     */
     public function execute(array $params, int $userId): ToolResult
     {
         $pair = strtoupper($params['pair'] ?? 'BTC/USDT');
@@ -115,6 +138,12 @@ class AnalyzeTrendTool implements ToolInterface
         }
     }
 
+    /**
+     * Calculate Ema.
+     * @param array $prices
+     * @param int $period
+     * @return float
+     */
     private function calculateEma(array $prices, int $period): float
     {
         $count = count($prices);
@@ -132,6 +161,16 @@ class AnalyzeTrendTool implements ToolInterface
         return $ema;
     }
 
+    /**
+     * Determine Trend.
+     * @param float $price
+     * @param float $ema20
+     * @param float $ema50
+     * @param float $ema200
+     * @param array $highs
+     * @param array $lows
+     * @return string
+     */
     private function determineTrend(
         float $price,
         float $ema20,
@@ -163,6 +202,12 @@ class AnalyzeTrendTool implements ToolInterface
         return 'sideways';
     }
 
+    /**
+     * Calculate Trend Strength.
+     * @param array $prices
+     * @param int $period
+     * @return float
+     */
     private function calculateTrendStrength(array $prices, int $period): float
     {
         $count = count($prices);
@@ -184,6 +229,11 @@ class AnalyzeTrendTool implements ToolInterface
         return $totalPositive / $totalNegative;
     }
 
+    /**
+     * Consolidate Trend.
+     * @param array $analysis
+     * @return array
+     */
     private function consolidateTrend(array $analysis): array
     {
         $directions = [];

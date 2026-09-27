@@ -9,6 +9,7 @@ namespace Fixzy\Kriptobot\Trading\Rules;
  * (crossing_up_30, crossing_down_70) like 3Commas.
  *
  * @package Fixzy\Kriptobot\Trading\Rules
+ * This file must retain this notice and its attribution to Fixzy Kriptobot (free use, attribution required - see LICENSE).
  */
 class RsiRule implements RuleInterface
 {
@@ -29,6 +30,10 @@ class RsiRule implements RuleInterface
         $this->period       = $period;
     }
 
+    /**
+     * Evaluate.
+     * @return bool
+     */
     public function evaluate(): bool
     {
         $rsi = $this->calculateWildersRsi();
@@ -117,6 +122,10 @@ class RsiRule implements RuleInterface
         return false;
     }
 
+    /**
+     * Get Context.
+     * @return array
+     */
     public function getContext(): array
     {
         return $this->lastContext;

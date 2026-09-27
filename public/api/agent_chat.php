@@ -1,4 +1,8 @@
 <?php
+/**
+ * Web UI page of the Fixzy Kriptobot project.
+ * This file must retain this notice and its attribution to Fixzy Kriptobot (free use, attribution required - see LICENSE).
+ */
 // API endpoint — AI Agent chat
 require_once dirname(__DIR__, 2) . '/vendor/autoload.php';
 

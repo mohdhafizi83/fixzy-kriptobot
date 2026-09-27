@@ -23,6 +23,7 @@ use Fixzy\Kriptobot\Security\EncryptionService;
  *
  * Secret values are encrypted at rest with AES_MASTER_KEY (encrypted=1).
  * The table is created lazily so a fresh/old database never breaks callers.
+ * This file must retain this notice and its attribution to Fixzy Kriptobot (free use, attribution required - see LICENSE).
  */
 class SettingService
 {
@@ -45,11 +46,19 @@ class SettingService
     private ?EncryptionService $encryption = null;
     private bool $ready = false;
 
+    /**
+     * __construct.
+     * @param Connection|null $db (default: null)
+     */
     public function __construct(?Connection $db = null)
     {
         $this->db = $db ?? Database::getConnection();
     }
 
+    /**
+     * Encryption.
+     * @return EncryptionService
+     */
     private function encryption(): EncryptionService
     {
         if ($this->encryption === null) {
@@ -77,6 +86,11 @@ class SettingService
         $this->ready = true;
     }
 
+    /**
+     * Is Managed Key.
+     * @param string $key
+     * @return bool
+     */
     public static function isManagedKey(string $key): bool
     {
         return isset(self::KEYS[$key]);

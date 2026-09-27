@@ -1,4 +1,8 @@
 <?php
+/**
+ * Web UI page of the Fixzy Kriptobot project.
+ * This file must retain this notice and its attribution to Fixzy Kriptobot (free use, attribution required - see LICENSE).
+ */
 // setup.php — First-run setup wizard (self-locking).
 //
 // Shown when the admin account has no password yet (fresh install).

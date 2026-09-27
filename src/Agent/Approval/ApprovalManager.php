@@ -6,10 +6,17 @@ use Doctrine\DBAL\Connection;
 use Fixzy\Kriptobot\Database\Database;
 use Fixzy\Kriptobot\Notifications\NotificationService;
 
+/**
+ * Class ApprovalManager - part of the Fixzy Kriptobot project.
+ * This file must retain this notice and its attribution to Fixzy Kriptobot (free use, attribution required - see LICENSE).
+ */
 class ApprovalManager
 {
     private Connection $db;
 
+    /**
+     * __construct.
+     */
     public function __construct()
     {
         $this->db = Database::getConnection();
@@ -191,6 +198,13 @@ class ApprovalManager
         return true;
     }
 
+    /**
+     * Create Bot From Config.
+     * @param int $userId
+     * @param array $config
+     * @param array $decision
+     * @return int
+     */
     private function createBotFromConfig(int $userId, array $config, array $decision): int
     {
         $pair = $config['general']['custom_pairs'] ?? ($config['coin_pair'] ?? 'BTC/USDT');
@@ -236,6 +250,13 @@ class ApprovalManager
         return (int) $this->db->lastInsertId();
     }
 
+    /**
+     * Update Bot Config.
+     * @param int $botId
+     * @param array $config
+     * @param array $decision
+     * @return void
+     */
     private function updateBotConfig(int $botId, array $config, array $decision): void
     {
         $this->db->update('bots', [
@@ -317,6 +338,11 @@ class ApprovalManager
         return $sent;
     }
 
+    /**
+     * Decode Decision.
+     * @param array $row
+     * @return array
+     */
     private function decodeDecision(array $row): array
     {
         $row['proposed_config']  = json_decode($row['proposed_config'], true) ?? [];

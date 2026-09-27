@@ -2,6 +2,10 @@
 
 namespace Fixzy\Kriptobot\Trading\Rules;
 
+/**
+ * Class TakeProfitRule - part of the Fixzy Kriptobot project.
+ * This file must retain this notice and its attribution to Fixzy Kriptobot (free use, attribution required - see LICENSE).
+ */
 class TakeProfitRule implements RuleInterface
 {
     private float $averageEntryPrice;
@@ -9,6 +13,12 @@ class TakeProfitRule implements RuleInterface
     private float $targetProfitPercentage;
     private array $lastContext = [];
 
+    /**
+     * __construct.
+     * @param float $averageEntryPrice
+     * @param float $currentPrice
+     * @param float $targetProfitPercentage
+     */
     public function __construct(float $averageEntryPrice, float $currentPrice, float $targetProfitPercentage)
     {
         $this->averageEntryPrice = $averageEntryPrice;
@@ -16,6 +26,10 @@ class TakeProfitRule implements RuleInterface
         $this->targetProfitPercentage = $targetProfitPercentage;
     }
 
+    /**
+     * Evaluate.
+     * @return bool
+     */
     public function evaluate(): bool
     {
         if ($this->averageEntryPrice <= 0) {
@@ -53,6 +67,10 @@ class TakeProfitRule implements RuleInterface
         return $passed;
     }
 
+    /**
+     * Get Context.
+     * @return array
+     */
     public function getContext(): array
     {
         return $this->lastContext;

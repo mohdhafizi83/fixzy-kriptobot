@@ -2,6 +2,10 @@
 
 namespace Fixzy\Kriptobot\Trading\Rules;
 
+/**
+ * Class RuleInterface - part of the Fixzy Kriptobot project.
+ * This file must retain this notice and its attribution to Fixzy Kriptobot (free use, attribution required - see LICENSE).
+ */
 interface RuleInterface
 {
     /**

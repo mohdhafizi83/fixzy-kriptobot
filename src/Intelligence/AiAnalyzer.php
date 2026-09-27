@@ -5,6 +5,10 @@ namespace Fixzy\Kriptobot\Intelligence;
 use GuzzleHttp\Client;
 use Exception;
 
+/**
+ * Class AiAnalyzer - part of the Fixzy Kriptobot project.
+ * This file must retain this notice and its attribution to Fixzy Kriptobot (free use, attribution required - see LICENSE).
+ */
 class AiAnalyzer
 {
     private string $apiKey;
@@ -33,6 +37,12 @@ class AiAnalyzer
         ]);
     }
 
+    /**
+     * Analyze Sentiment.
+     * @param string $coinPair
+     * @param array $verifiedNews
+     * @return array
+     */
     public function analyzeSentiment(string $coinPair, array $verifiedNews): array
     {
         // PRODUCTION SAFEGUARD: API Key is required

@@ -1,5 +1,9 @@
 <?php
 /**
+ * Web UI page of the Fixzy Kriptobot project.
+ * This file must retain this notice and its attribution to Fixzy Kriptobot (free use, attribution required - see LICENSE).
+ */
+/**
  * Legacy endpoint shim — kept for backward compatibility.
  *
  * Delegates to the v1 API front controller so all logic lives in one place.

@@ -6,6 +6,7 @@ namespace Fixzy\Kriptobot\Http;
  * ApiResponse — standard JSON envelope for every API response.
  *
  * Shape: { "ok": bool, "data": mixed|null, "error": string|null }
+ * This file must retain this notice and its attribution to Fixzy Kriptobot (free use, attribution required - see LICENSE).
  */
 class ApiResponse
 {

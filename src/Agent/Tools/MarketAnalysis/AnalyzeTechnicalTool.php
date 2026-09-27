@@ -7,21 +7,37 @@ use Fixzy\Kriptobot\Agent\Tools\ToolResult;
 use Fixzy\Kriptobot\Backtest\BinanceDataIngester;
 use Fixzy\Kriptobot\Database\Database;
 
+/**
+ * Class AnalyzeTechnicalTool - part of the Fixzy Kriptobot project.
+ * This file must retain this notice and its attribution to Fixzy Kriptobot (free use, attribution required - see LICENSE).
+ */
 class AnalyzeTechnicalTool implements ToolInterface
 {
     private BinanceDataIngester $ingester;
 
+    /**
+     * __construct.
+     */
     public function __construct()
     {
         $conn = Database::getConnection();
         $this->ingester = new BinanceDataIngester($conn);
     }
 
+    /**
+     * Get Name.
+     * @return string
+     */
     public function getName(): string
     {
         return 'analyze_technical';
     }
 
+    /**
+     * Get Description.
+     * @param string $lang (default: 'en')
+     * @return string
+     */
     public function getDescription(string $lang = 'en'): string
     {
         return $lang === 'ms'
@@ -29,6 +45,10 @@ class AnalyzeTechnicalTool implements ToolInterface
             : 'Run technical indicator analysis (TA) for a cryptocurrency pair on specified timeframes. Supports RSI, Bollinger Bands, and QFL. Use to assess overbought/oversold conditions, volatility bands, and support/resistance levels.';
     }
 
+    /**
+     * Get Parameters.
+     * @return array
+     */
     public function getParameters(): array
     {
         return [
@@ -55,6 +75,12 @@ class AnalyzeTechnicalTool implements ToolInterface
         ];
     }
 
+    /**
+     * Execute.
+     * @param array $params
+     * @param int $userId
+     * @return ToolResult
+     */
     public function execute(array $params, int $userId): ToolResult
     {
         $pair = $params['pair'] ?? 'BTC/USDT';
@@ -107,6 +133,13 @@ class AnalyzeTechnicalTool implements ToolInterface
         }
     }
 
+    /**
+     * Get Candles.
+     * @param string $pair
+     * @param string $timeframe
+     * @param int $limit
+     * @return array
+     */
     private function getCandles(string $pair, string $timeframe, int $limit): array
     {
         $candleMap = [
@@ -135,6 +168,12 @@ class AnalyzeTechnicalTool implements ToolInterface
         }
     }
 
+    /**
+     * Calculate Rsi.
+     * @param array $prices
+     * @param int $period (default: 14)
+     * @return array
+     */
     private function calculateRsi(array $prices, int $period = 14): array
     {
         if (count($prices) < $period + 1) {
@@ -179,6 +218,13 @@ class AnalyzeTechnicalTool implements ToolInterface
         ];
     }
 
+    /**
+     * Calculate Bollinger.
+     * @param array $prices
+     * @param int $period (default: 20)
+     * @param float $stddev (default: 2.0)
+     * @return array
+     */
     private function calculateBollinger(array $prices, int $period = 20, float $stddev = 2.0): array
     {
         if (count($prices) < $period) {
@@ -220,6 +266,13 @@ class AnalyzeTechnicalTool implements ToolInterface
         ];
     }
 
+    /**
+     * Calculate Qfl.
+     * @param array $lows
+     * @param array $highs
+     * @param array $closes (default: [])
+     * @return array
+     */
     private function calculateQfl(array $lows, array $highs, array $closes = []): array
     {
         if (count($lows) < 10) {

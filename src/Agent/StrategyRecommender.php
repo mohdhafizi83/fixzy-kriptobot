@@ -2,6 +2,10 @@
 
 namespace Fixzy\Kriptobot\Agent;
 
+/**
+ * Class StrategyRecommender - part of the Fixzy Kriptobot project.
+ * This file must retain this notice and its attribution to Fixzy Kriptobot (free use, attribution required - see LICENSE).
+ */
 class StrategyRecommender
 {
     /**

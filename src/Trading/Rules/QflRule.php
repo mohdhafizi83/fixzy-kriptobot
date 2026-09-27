@@ -6,6 +6,7 @@ namespace Fixzy\Kriptobot\Trading\Rules;
  * QflRule — Quickfingers Luc (QFL) Fractal Base Detection Strategy.
  *
  * @package Fixzy\Kriptobot\Trading\Rules
+ * This file must retain this notice and its attribution to Fixzy Kriptobot (free use, attribution required - see LICENSE).
  */
 class QflRule implements RuleInterface
 {
@@ -15,6 +16,11 @@ class QflRule implements RuleInterface
     private string $mode;
     private array $lastContext = [];
 
+    /**
+     * __construct.
+     * @param string $rawCondition
+     * @param array $candles
+     */
     public function __construct(string $rawCondition, array $candles)
     {
         $this->rawCondition = trim(strtolower($rawCondition));
@@ -42,6 +48,10 @@ class QflRule implements RuleInterface
         }
     }
 
+    /**
+     * Evaluate.
+     * @return bool
+     */
     public function evaluate(): bool
     {
         if ($this->mode === 'sell') {
@@ -51,11 +61,19 @@ class QflRule implements RuleInterface
         return $this->evaluateBuy();
     }
 
+    /**
+     * Get Context.
+     * @return array
+     */
     public function getContext(): array
     {
         return $this->lastContext;
     }
 
+    /**
+     * Evaluate Buy.
+     * @return bool
+     */
     private function evaluateBuy(): bool
     {
         $basePrice = $this->findLatestBase();
@@ -90,6 +108,10 @@ class QflRule implements RuleInterface
         return $passed;
     }
 
+    /**
+     * Evaluate Sell.
+     * @return bool
+     */
     private function evaluateSell(): bool
     {
         if (empty($this->candles)) {
@@ -135,6 +157,10 @@ class QflRule implements RuleInterface
         return $passed;
     }
 
+    /**
+     * Find Latest Base.
+     * @return float|null
+     */
     private function findLatestBase(): ?float
     {
         $totalCandles = count($this->candles);
@@ -160,6 +186,10 @@ class QflRule implements RuleInterface
         return null;
     }
 
+    /**
+     * Find Latest Resistance.
+     * @return float|null
+     */
     private function findLatestResistance(): ?float
     {
         $totalCandles = count($this->candles);

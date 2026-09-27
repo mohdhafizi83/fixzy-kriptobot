@@ -1,5 +1,9 @@
 #!/usr/bin/env php
 <?php
+/**
+ * Test file of the Fixzy Kriptobot project.
+ * This file must retain this notice and its attribution to Fixzy Kriptobot (free use, attribution required - see LICENSE).
+ */
 // E2E test: fresh-install setup flow (temp env + temp DB; production untouched).
 $tmp = sys_get_temp_dir() . '/kb_setup_test_' . getmypid();
 @mkdir($tmp, 0777, true);
@@ -19,6 +23,12 @@ use Fixzy\Kriptobot\Service\SetupService;
 use Fixzy\Kriptobot\Service\SettingService;
 
 $pass = 0; $fail = 0;
+/**
+ * Check.
+ * @param string $name
+ * @param bool $cond
+ * @return void
+ */
 function check(string $name, bool $cond): void {
     global $pass, $fail;
     if ($cond) { $pass++; echo "  PASS  $name\n"; }
@@ -68,6 +78,12 @@ try {
 }
 
 echo "== Validation (fresh db) ==\n";
+/**
+ * Fresh Setup.
+ * @param string $tmp
+ * @param string $name
+ * @return SetupService
+ */
 function freshSetup(string $tmp, string $name): SetupService {
     file_put_contents($tmp . '/' . $name . '.env', implode("\n", [
         'DB_PATH=' . $tmp . '/' . $name . '.sqlite',

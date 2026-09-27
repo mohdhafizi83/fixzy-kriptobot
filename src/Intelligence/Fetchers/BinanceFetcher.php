@@ -6,10 +6,17 @@ use Fixzy\Kriptobot\Intelligence\Contracts\NewsFetcherInterface;
 use GuzzleHttp\Client;
 use Exception;
 
+/**
+ * Class BinanceFetcher - part of the Fixzy Kriptobot project.
+ * This file must retain this notice and its attribution to Fixzy Kriptobot (free use, attribution required - see LICENSE).
+ */
 class BinanceFetcher implements NewsFetcherInterface
 {
     private Client $httpClient;
 
+    /**
+     * __construct.
+     */
     public function __construct()
     {
         // Go straight to the official public Binance website (Category: New Cryptocurrency Listing)
@@ -24,11 +31,20 @@ class BinanceFetcher implements NewsFetcherInterface
         ]);
     }
 
+    /**
+     * Get Source Name.
+     * @return string
+     */
     public function getSourceName(): string
     {
         return 'Binance Official Announcement';
     }
 
+    /**
+     * Fetch Latest News.
+     * @param string $coinPair
+     * @return array
+     */
     public function fetchLatestNews(string $coinPair): array
     {
         // Extract the symbol (e.g. BTC/USDT -> BTC)

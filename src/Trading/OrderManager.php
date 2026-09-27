@@ -14,6 +14,7 @@ use Exception;
  * (average fill price, filled amount) to ensure accurate state tracking.
  *
  * @package Fixzy\Kriptobot\Trading
+ * This file must retain this notice and its attribution to Fixzy Kriptobot (free use, attribution required - see LICENSE).
  */
 class OrderManager
 {

@@ -8,12 +8,20 @@ namespace Fixzy\Kriptobot\Http;
  * Patterns look like: GET /bots, POST /bots/{id}/activate
  * Handler callbacks receive (array $params, array $body) and return a value
  * that is wrapped in ApiResponse::ok(), or throw ApiException for errors.
+ * This file must retain this notice and its attribution to Fixzy Kriptobot (free use, attribution required - see LICENSE).
  */
 class Router
 {
     /** @var array<int, array{method: string, regex: string, params: array<int, string>, handler: callable}> */
     private array $routes = [];
 
+    /**
+     * Add.
+     * @param string $method
+     * @param string $pattern
+     * @param callable $handler
+     * @return void
+     */
     public function add(string $method, string $pattern, callable $handler): void
     {
         $params = [];

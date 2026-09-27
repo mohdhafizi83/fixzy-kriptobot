@@ -1,4 +1,8 @@
 <?php
+/**
+ * CLI script of the Fixzy Kriptobot project.
+ * This file must retain this notice and its attribution to Fixzy Kriptobot (free use, attribution required - see LICENSE).
+ */
 
 /**
  * Fixzy Kriptobot — Schema Migration
@@ -40,6 +44,12 @@ if (!function_exists('addColumnIfMissing')) {
 }
 
 if (!function_exists('runKriptobotMigration')) {
+    /**
+     * Run Kriptobot Migration.
+     * @param \Doctrine\DBAL\Connection $conn
+     * @param bool $quiet (default: false)
+     * @return void
+     */
     function runKriptobotMigration(\Doctrine\DBAL\Connection $conn, bool $quiet = false): void
     {
         if (!$quiet) {

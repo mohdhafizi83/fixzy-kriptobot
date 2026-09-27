@@ -7,13 +7,26 @@ use Fixzy\Kriptobot\Agent\Tools\ToolResult;
 use Fixzy\Kriptobot\Backtest\BinanceDataIngester;
 use Fixzy\Kriptobot\Database\Database;
 
+/**
+ * Class AnalyzeVolatilityTool - part of the Fixzy Kriptobot project.
+ * This file must retain this notice and its attribution to Fixzy Kriptobot (free use, attribution required - see LICENSE).
+ */
 class AnalyzeVolatilityTool implements ToolInterface
 {
+    /**
+     * Get Name.
+     * @return string
+     */
     public function getName(): string
     {
         return 'analyze_volatility';
     }
 
+    /**
+     * Get Description.
+     * @param string $lang (default: 'en')
+     * @return string
+     */
     public function getDescription(string $lang = 'en'): string
     {
         return $lang === 'ms'
@@ -21,6 +34,10 @@ class AnalyzeVolatilityTool implements ToolInterface
             : 'Analyze volatility for a cryptocurrency pair. Calculates ATR (Average True Range), standard deviation, and volatility levels. Useful for setting appropriate trailing stops and DCA sizing.';
     }
 
+    /**
+     * Get Parameters.
+     * @return array
+     */
     public function getParameters(): array
     {
         return [
@@ -33,6 +50,12 @@ class AnalyzeVolatilityTool implements ToolInterface
         ];
     }
 
+    /**
+     * Execute.
+     * @param array $params
+     * @param int $userId
+     * @return ToolResult
+     */
     public function execute(array $params, int $userId): ToolResult
     {
         $pair = strtoupper($params['pair'] ?? 'BTC/USDT');
@@ -103,6 +126,14 @@ class AnalyzeVolatilityTool implements ToolInterface
         }
     }
 
+    /**
+     * Calculate Atr.
+     * @param array $highs
+     * @param array $lows
+     * @param array $closes
+     * @param int $period (default: 14)
+     * @return float
+     */
     private function calculateAtr(array $highs, array $lows, array $closes, int $period = 14): float
     {
         $trValues = [];
@@ -119,6 +150,11 @@ class AnalyzeVolatilityTool implements ToolInterface
         return count($recentTr) > 0 ? array_sum($recentTr) / count($recentTr) : 0;
     }
 
+    /**
+     * Get Volatility Recommendations.
+     * @param string $level
+     * @return array
+     */
     private function getVolatilityRecommendations(string $level): array
     {
         return match ($level) {

@@ -6,13 +6,26 @@ use Fixzy\Kriptobot\Agent\Tools\ToolInterface;
 use Fixzy\Kriptobot\Agent\Tools\ToolResult;
 use Fixzy\Kriptobot\Database\Database;
 
+/**
+ * Class GetBotStatusTool - part of the Fixzy Kriptobot project.
+ * This file must retain this notice and its attribution to Fixzy Kriptobot (free use, attribution required - see LICENSE).
+ */
 class GetBotStatusTool implements ToolInterface
 {
+    /**
+     * Get Name.
+     * @return string
+     */
     public function getName(): string
     {
         return 'get_bot_status';
     }
 
+    /**
+     * Get Description.
+     * @param string $lang (default: 'en')
+     * @return string
+     */
     public function getDescription(string $lang = 'en'): string
     {
         return $lang === 'ms'
@@ -20,6 +33,10 @@ class GetBotStatusTool implements ToolInterface
             : 'Get detailed status of a specific bot including full configuration, runtime state, current PNL, and trade statistics. Use to check bot performance before proposing changes.';
     }
 
+    /**
+     * Get Parameters.
+     * @return array
+     */
     public function getParameters(): array
     {
         return [
@@ -31,6 +48,12 @@ class GetBotStatusTool implements ToolInterface
         ];
     }
 
+    /**
+     * Execute.
+     * @param array $params
+     * @param int $userId
+     * @return ToolResult
+     */
     public function execute(array $params, int $userId): ToolResult
     {
         $botId = (int)($params['bot_id'] ?? 0);

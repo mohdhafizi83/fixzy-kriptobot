@@ -2,18 +2,31 @@
 
 namespace Fixzy\Kriptobot\Trading\Rules;
 
+/**
+ * Class ExternalSignalRule - part of the Fixzy Kriptobot project.
+ * This file must retain this notice and its attribution to Fixzy Kriptobot (free use, attribution required - see LICENSE).
+ */
 class ExternalSignalRule implements RuleInterface
 {
     private string $expectedSignal;
     private string $actualSignal;
     private array $lastContext = [];
 
+    /**
+     * __construct.
+     * @param string $expectedSignal
+     * @param string $actualSignal
+     */
     public function __construct(string $expectedSignal, string $actualSignal)
     {
         $this->expectedSignal = strtoupper(trim($expectedSignal));
         $this->actualSignal   = strtoupper(trim($actualSignal));
     }
 
+    /**
+     * Evaluate.
+     * @return bool
+     */
     public function evaluate(): bool
     {
         if (empty($this->expectedSignal) || empty($this->actualSignal)) {
@@ -52,6 +65,10 @@ class ExternalSignalRule implements RuleInterface
         return $passed;
     }
 
+    /**
+     * Get Context.
+     * @return array
+     */
     public function getContext(): array
     {
         return $this->lastContext;

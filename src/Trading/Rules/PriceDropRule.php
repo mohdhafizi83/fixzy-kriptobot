@@ -2,6 +2,10 @@
 
 namespace Fixzy\Kriptobot\Trading\Rules;
 
+/**
+ * Class PriceDropRule - part of the Fixzy Kriptobot project.
+ * This file must retain this notice and its attribution to Fixzy Kriptobot (free use, attribution required - see LICENSE).
+ */
 class PriceDropRule implements RuleInterface
 {
     private float $averageEntryPrice;
@@ -9,6 +13,12 @@ class PriceDropRule implements RuleInterface
     private float $dropPercentageRequired;
     private array $lastContext = [];
 
+    /**
+     * __construct.
+     * @param float $averageEntryPrice
+     * @param float $currentPrice
+     * @param float $dropPercentageRequired
+     */
     public function __construct(float $averageEntryPrice, float $currentPrice, float $dropPercentageRequired)
     {
         $this->averageEntryPrice = $averageEntryPrice;
@@ -16,6 +26,10 @@ class PriceDropRule implements RuleInterface
         $this->dropPercentageRequired = $dropPercentageRequired;
     }
 
+    /**
+     * Evaluate.
+     * @return bool
+     */
     public function evaluate(): bool
     {
         if ($this->averageEntryPrice <= 0) {
@@ -48,6 +62,10 @@ class PriceDropRule implements RuleInterface
         return $passed;
     }
 
+    /**
+     * Get Context.
+     * @return array
+     */
     public function getContext(): array
     {
         return $this->lastContext;

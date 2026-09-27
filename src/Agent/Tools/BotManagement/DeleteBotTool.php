@@ -6,13 +6,26 @@ use Fixzy\Kriptobot\Agent\Tools\ToolInterface;
 use Fixzy\Kriptobot\Agent\Tools\ToolResult;
 use Fixzy\Kriptobot\Database\Database;
 
+/**
+ * Class DeleteBotTool - part of the Fixzy Kriptobot project.
+ * This file must retain this notice and its attribution to Fixzy Kriptobot (free use, attribution required - see LICENSE).
+ */
 class DeleteBotTool implements ToolInterface
 {
+    /**
+     * Get Name.
+     * @return string
+     */
     public function getName(): string
     {
         return 'delete_bot';
     }
 
+    /**
+     * Get Description.
+     * @param string $lang (default: 'en')
+     * @return string
+     */
     public function getDescription(string $lang = 'en'): string
     {
         return $lang === 'ms'
@@ -20,6 +33,10 @@ class DeleteBotTool implements ToolInterface
             : 'Deactivate or delete a trading bot. Use with caution — this will stop active trading. Bot is marked as inactive.';
     }
 
+    /**
+     * Get Parameters.
+     * @return array
+     */
     public function getParameters(): array
     {
         return [
@@ -32,6 +49,12 @@ class DeleteBotTool implements ToolInterface
         ];
     }
 
+    /**
+     * Execute.
+     * @param array $params
+     * @param int $userId
+     * @return ToolResult
+     */
     public function execute(array $params, int $userId): ToolResult
     {
         $botId = (int)($params['bot_id'] ?? 0);

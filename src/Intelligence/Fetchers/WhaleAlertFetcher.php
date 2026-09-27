@@ -6,6 +6,10 @@ use Fixzy\Kriptobot\Intelligence\Contracts\NewsFetcherInterface;
 use GuzzleHttp\Client;
 use Exception;
 
+/**
+ * Class WhaleAlertFetcher - part of the Fixzy Kriptobot project.
+ * This file must retain this notice and its attribution to Fixzy Kriptobot (free use, attribution required - see LICENSE).
+ */
 class WhaleAlertFetcher implements NewsFetcherInterface
 {
     private string $apiKey;
@@ -24,11 +28,20 @@ class WhaleAlertFetcher implements NewsFetcherInterface
         ]);
     }
 
+    /**
+     * Get Source Name.
+     * @return string
+     */
     public function getSourceName(): string
     {
         return 'Whale Alert (On-Chain Data)';
     }
 
+    /**
+     * Fetch Latest News.
+     * @param string $coinPair
+     * @return array
+     */
     public function fetchLatestNews(string $coinPair): array
     {
         // Extract the symbol and lowercase it because the Whale Alert API uses lowercase format (e.g. 'btc')

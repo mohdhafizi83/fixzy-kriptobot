@@ -5,25 +5,48 @@ namespace Fixzy\Kriptobot\Agent;
 use Fixzy\Kriptobot\Agent\Tools\ToolInterface;
 use Fixzy\Kriptobot\Agent\Tools\ToolResult;
 
+/**
+ * Class AgentToolRegistry - part of the Fixzy Kriptobot project.
+ * This file must retain this notice and its attribution to Fixzy Kriptobot (free use, attribution required - see LICENSE).
+ */
 class AgentToolRegistry
 {
     private array $tools = [];
 
+    /**
+     * Register.
+     * @param ToolInterface $tool
+     * @return void
+     */
     public function register(ToolInterface $tool): void
     {
         $this->tools[$tool->getName()] = $tool;
     }
 
+    /**
+     * Unregister.
+     * @param string $name
+     * @return void
+     */
     public function unregister(string $name): void
     {
         unset($this->tools[$name]);
     }
 
+    /**
+     * Get Tool.
+     * @param string $name
+     * @return ToolInterface|null
+     */
     public function getTool(string $name): ?ToolInterface
     {
         return $this->tools[$name] ?? null;
     }
 
+    /**
+     * Get All Tools.
+     * @return array
+     */
     public function getAllTools(): array
     {
         return $this->tools;
@@ -120,6 +143,13 @@ class AgentToolRegistry
         return $definitions;
     }
 
+    /**
+     * Execute.
+     * @param string $name
+     * @param array $params
+     * @param int $userId
+     * @return ToolResult
+     */
     public function execute(string $name, array $params, int $userId): ToolResult
     {
         $tool = $this->getTool($name);

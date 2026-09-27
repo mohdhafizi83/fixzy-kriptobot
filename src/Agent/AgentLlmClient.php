@@ -5,6 +5,10 @@ namespace Fixzy\Kriptobot\Agent;
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\GuzzleException;
 
+/**
+ * Class AgentLlmClient - part of the Fixzy Kriptobot project.
+ * This file must retain this notice and its attribution to Fixzy Kriptobot (free use, attribution required - see LICENSE).
+ */
 class AgentLlmClient
 {
     private string $apiKey;
@@ -12,6 +16,12 @@ class AgentLlmClient
     private Client $httpClient;
     private int $maxRetries = 2;
 
+    /**
+     * __construct.
+     * @param string $apiKey
+     * @param string $model
+     * @param string $baseUrl
+     */
     public function __construct(string $apiKey, string $model, string $baseUrl)
     {
         $this->apiKey  = $apiKey;
@@ -110,6 +120,12 @@ class AgentLlmClient
         return $this->parseResponse($response);
     }
 
+    /**
+     * Send Request.
+     * @param string $endpoint
+     * @param array $payload
+     * @return array
+     */
     private function sendRequest(string $endpoint, array $payload): array
     {
         $attempt = 0;
@@ -138,6 +154,11 @@ class AgentLlmClient
         );
     }
 
+    /**
+     * Parse Response.
+     * @param array $body
+     * @return array
+     */
     private function parseResponse(array $body): array
     {
         $choice = $body['choices'][0] ?? null;
@@ -157,6 +178,12 @@ class AgentLlmClient
         return $result;
     }
 
+    /**
+     * Build React Prompt.
+     * @param string $userQuery
+     * @param string $toolDescriptions
+     * @return string
+     */
     private function buildReactPrompt(string $userQuery, string $toolDescriptions): string
     {
         return <<<PROMPT
@@ -178,6 +205,11 @@ User Query: {$userQuery}
 PROMPT;
     }
 
+    /**
+     * Extract Tool Calls From Text.
+     * @param array $parsed
+     * @return array
+     */
     private function extractToolCallsFromText(array $parsed): array
     {
         $content = $parsed['content'] ?? '';

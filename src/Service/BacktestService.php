@@ -14,6 +14,7 @@ use Fixzy\Kriptobot\Trading\Rules\ExecutionGuardService;
  *
  * Previously this logic (including CREATE TABLE statements) lived directly in
  * public/api/backtest_run.php. Moved here so no SQL lives in public/.
+ * This file must retain this notice and its attribution to Fixzy Kriptobot (free use, attribution required - see LICENSE).
  */
 class BacktestService
 {
@@ -21,6 +22,10 @@ class BacktestService
     private BinanceDataIngester $ingester;
     private BacktestEngine $engine;
 
+    /**
+     * __construct.
+     * @param Connection|null $db (default: null)
+     */
     public function __construct(?Connection $db = null)
     {
         $this->db = $db ?? Database::getConnection();

@@ -2,6 +2,10 @@
 
 namespace Fixzy\Kriptobot\Agent;
 
+/**
+ * Class RiskProfiler - part of the Fixzy Kriptobot project.
+ * This file must retain this notice and its attribution to Fixzy Kriptobot (free use, attribution required - see LICENSE).
+ */
 class RiskProfiler
 {
     public const PROFILES = [
@@ -119,11 +123,21 @@ class RiskProfiler
         return $profile;
     }
 
+    /**
+     * Get Profile.
+     * @param string $key
+     * @return array|null
+     */
     public function getProfile(string $key): ?array
     {
         return self::PROFILES[$key] ?? null;
     }
 
+    /**
+     * Get All Profiles.
+     * @param string $lang (default: 'en')
+     * @return array
+     */
     public function getAllProfiles(string $lang = 'en'): array
     {
         $result = [];

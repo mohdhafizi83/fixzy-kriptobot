@@ -2,6 +2,10 @@
 
 namespace Fixzy\Kriptobot\Trading\Rules;
 
+/**
+ * Class MinimumProfitGuardRule - part of the Fixzy Kriptobot project.
+ * This file must retain this notice and its attribution to Fixzy Kriptobot (free use, attribution required - see LICENSE).
+ */
 class MinimumProfitGuardRule implements RuleInterface
 {
     private float $averageEntryPrice;
@@ -13,6 +17,16 @@ class MinimumProfitGuardRule implements RuleInterface
     private bool $isSmartModeActive;
     private array $lastContext = [];
 
+    /**
+     * __construct.
+     * @param float $averageEntryPrice
+     * @param float $currentPrice
+     * @param float $minProfitPercentage
+     * @param bool $isEnabled
+     * @param int $entryTimestamp
+     * @param int $timeoutHours
+     * @param bool $isSmartModeActive (default: false)
+     */
     public function __construct(
         float $averageEntryPrice,
         float $currentPrice,
@@ -31,6 +45,10 @@ class MinimumProfitGuardRule implements RuleInterface
         $this->isSmartModeActive  = $isSmartModeActive;
     }
 
+    /**
+     * Evaluate.
+     * @return bool
+     */
     public function evaluate(): bool
     {
         if ($this->averageEntryPrice <= 0) {
@@ -72,16 +90,28 @@ class MinimumProfitGuardRule implements RuleInterface
         return $passed;
     }
 
+    /**
+     * Get Context.
+     * @return array
+     */
     public function getContext(): array
     {
         return $this->lastContext;
     }
 
+    /**
+     * Check Profit Reached.
+     * @return bool
+     */
     private function checkProfitReached(): bool
     {
         return $this->calcProfitPct() >= $this->minProfitPercentage;
     }
 
+    /**
+     * Calc Profit Pct.
+     * @return float
+     */
     private function calcProfitPct(): float
     {
         $priceDifference = $this->currentPrice - $this->averageEntryPrice;

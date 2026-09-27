@@ -14,6 +14,7 @@ use Exception;
  * Used by bot_daemon.php for all real-time trading operations.
  *
  * @package Fixzy\Kriptobot\Trading
+ * This file must retain this notice and its attribution to Fixzy Kriptobot (free use, attribution required - see LICENSE).
  */
 class ExchangeService
 {

@@ -13,12 +13,17 @@ use Doctrine\DBAL\Connection;
  *   3. Max Active Deals — limit the number of concurrent deals (Composite Bot)
  *
  * @package Fixzy\Kriptobot\Trading\Rules
+ * This file must retain this notice and its attribution to Fixzy Kriptobot (free use, attribution required - see LICENSE).
  */
 class ExecutionGuardService
 {
     private Connection $db;
     private array $lastRejectionContext = [];
 
+    /**
+     * __construct.
+     * @param Connection $db
+     */
     public function __construct(Connection $db)
     {
         $this->db = $db;
@@ -152,6 +157,13 @@ class ExecutionGuardService
     private int $lastCooldownRemaining = 0;
     private int $lastActiveCount = 0;
 
+    /**
+     * Is Blacklisted.
+     * @param int $userId
+     * @param string $coinPair
+     * @param string $botBlacklist (default: '')
+     * @return bool
+     */
     private function isBlacklisted(int $userId, string $coinPair, string $botBlacklist = ''): bool
     {
         $baseCoin = explode('/', $coinPair)[0];
@@ -187,6 +199,13 @@ class ExecutionGuardService
         return in_array($baseCoin, $blacklist) || in_array($coinPair, $blacklist);
     }
 
+    /**
+     * Is Cooldown Passed.
+     * @param int $userId
+     * @param string $coinPair
+     * @param int $cooldownSeconds
+     * @return bool
+     */
     private function isCooldownPassed(int $userId, string $coinPair, int $cooldownSeconds): bool
     {
         $row = $this->db->executeQuery(
@@ -210,6 +229,13 @@ class ExecutionGuardService
         return $elapsed >= $cooldownSeconds;
     }
 
+    /**
+     * Has Reached Max Deals.
+     * @param int $userId
+     * @param int $maxActiveDeals
+     * @param int $botId
+     * @return bool
+     */
     private function hasReachedMaxDeals(int $userId, int $maxActiveDeals, int $botId): bool
     {
         $rows = $this->db->executeQuery(

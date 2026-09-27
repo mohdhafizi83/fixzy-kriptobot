@@ -2,17 +2,29 @@
 
 namespace Fixzy\Kriptobot\Trading\Rules;
 
+/**
+ * Class LogicalAnd - part of the Fixzy Kriptobot project.
+ * This file must retain this notice and its attribution to Fixzy Kriptobot (free use, attribution required - see LICENSE).
+ */
 class LogicalAnd implements RuleInterface
 {
     /** @var RuleInterface[] */
     private array $rules;
     private array $lastContext = [];
 
+    /**
+     * __construct.
+     * @param RuleInterface... $rules
+     */
     public function __construct(RuleInterface ...$rules)
     {
         $this->rules = $rules;
     }
 
+    /**
+     * Evaluate.
+     * @return bool
+     */
     public function evaluate(): bool
     {
         $subResults = [];
@@ -44,6 +56,10 @@ class LogicalAnd implements RuleInterface
         return $overall;
     }
 
+    /**
+     * Get Context.
+     * @return array
+     */
     public function getContext(): array
     {
         return $this->lastContext;

@@ -1,4 +1,8 @@
 <?php
+/**
+ * CLI script of the Fixzy Kriptobot project.
+ * This file must retain this notice and its attribution to Fixzy Kriptobot (free use, attribution required - see LICENSE).
+ */
 // Fail: bin/bot_daemon.php
 
 require_once dirname(__DIR__) . '/vendor/autoload.php';

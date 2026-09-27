@@ -5,10 +5,18 @@ namespace Fixzy\Kriptobot\Security;
 use Doctrine\DBAL\Connection;
 use Exception;
 
+/**
+ * Class AuthService - part of the Fixzy Kriptobot project.
+ * This file must retain this notice and its attribution to Fixzy Kriptobot (free use, attribution required - see LICENSE).
+ */
 class AuthService
 {
     private Connection $db;
 
+    /**
+     * __construct.
+     * @param Connection $db
+     */
     public function __construct(Connection $db)
     {
         $this->db = $db;

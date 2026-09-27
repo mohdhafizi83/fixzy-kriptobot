@@ -7,13 +7,26 @@ use Fixzy\Kriptobot\Agent\Tools\ToolResult;
 use Fixzy\Kriptobot\Backtest\BinanceDataIngester;
 use Fixzy\Kriptobot\Database\Database;
 
+/**
+ * Class GetHistoricalDataTool - part of the Fixzy Kriptobot project.
+ * This file must retain this notice and its attribution to Fixzy Kriptobot (free use, attribution required - see LICENSE).
+ */
 class GetHistoricalDataTool implements ToolInterface
 {
+    /**
+     * Get Name.
+     * @return string
+     */
     public function getName(): string
     {
         return 'get_historical_data';
     }
 
+    /**
+     * Get Description.
+     * @param string $lang (default: 'en')
+     * @return string
+     */
     public function getDescription(string $lang = 'en'): string
     {
         return $lang === 'ms'
@@ -21,6 +34,10 @@ class GetHistoricalDataTool implements ToolInterface
             : 'Get historical OHLCV data for a cryptocurrency pair. Useful for backtesting and historical performance analysis. Check data availability before running backtests.';
     }
 
+    /**
+     * Get Parameters.
+     * @return array
+     */
     public function getParameters(): array
     {
         return [
@@ -36,6 +53,12 @@ class GetHistoricalDataTool implements ToolInterface
         ];
     }
 
+    /**
+     * Execute.
+     * @param array $params
+     * @param int $userId
+     * @return ToolResult
+     */
     public function execute(array $params, int $userId): ToolResult
     {
         $pair = strtoupper($params['pair'] ?? 'BTC/USDT');

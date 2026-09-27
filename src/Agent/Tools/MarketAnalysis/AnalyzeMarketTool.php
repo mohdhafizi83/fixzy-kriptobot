@@ -6,13 +6,26 @@ use Fixzy\Kriptobot\Agent\Tools\ToolInterface;
 use Fixzy\Kriptobot\Agent\Tools\ToolResult;
 use Fixzy\Kriptobot\Database\Database;
 
+/**
+ * Class AnalyzeMarketTool - part of the Fixzy Kriptobot project.
+ * This file must retain this notice and its attribution to Fixzy Kriptobot (free use, attribution required - see LICENSE).
+ */
 class AnalyzeMarketTool implements ToolInterface
 {
+    /**
+     * Get Name.
+     * @return string
+     */
     public function getName(): string
     {
         return 'analyze_market';
     }
 
+    /**
+     * Get Description.
+     * @param string $lang (default: 'en')
+     * @return string
+     */
     public function getDescription(string $lang = 'en'): string
     {
         return $lang === 'ms'
@@ -20,6 +33,10 @@ class AnalyzeMarketTool implements ToolInterface
             : 'Analyze current market data for specific cryptocurrency pairs. Gets latest price, 24h volume, price change, and basic market data. Use before proposing any trading strategy.';
     }
 
+    /**
+     * Get Parameters.
+     * @return array
+     */
     public function getParameters(): array
     {
         return [
@@ -39,6 +56,12 @@ class AnalyzeMarketTool implements ToolInterface
         ];
     }
 
+    /**
+     * Execute.
+     * @param array $params
+     * @param int $userId
+     * @return ToolResult
+     */
     public function execute(array $params, int $userId): ToolResult
     {
         $action = $params['action'] ?? 'overview';
@@ -80,6 +103,11 @@ class AnalyzeMarketTool implements ToolInterface
         }
     }
 
+    /**
+     * Get Overview.
+     * @param string $pair
+     * @return array
+     */
     private function getOverview(string $pair): array
     {
         if (empty($pair)) {
@@ -103,6 +131,11 @@ class AnalyzeMarketTool implements ToolInterface
         ];
     }
 
+    /**
+     * Get Prices.
+     * @param string $pair
+     * @return array
+     */
     private function getPrices(string $pair): array
     {
         if (empty($pair)) {
@@ -127,6 +160,11 @@ class AnalyzeMarketTool implements ToolInterface
         return $result;
     }
 
+    /**
+     * Get Volume Data.
+     * @param string $pair
+     * @return array
+     */
     private function getVolumeData(string $pair): array
     {
         if (empty($pair)) {
@@ -151,6 +189,10 @@ class AnalyzeMarketTool implements ToolInterface
         return $result;
     }
 
+    /**
+     * Scan Top Coins.
+     * @return array
+     */
     private function scanTopCoins(): array
     {
         try {
@@ -192,6 +234,11 @@ class AnalyzeMarketTool implements ToolInterface
         }
     }
 
+    /**
+     * Fetch Ticker.
+     * @param string $symbol
+     * @return array|null
+     */
     private function fetchTicker(string $symbol): ?array
     {
         // Try APCu cached ticker first (set by daemon)

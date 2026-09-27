@@ -12,11 +12,16 @@ use Fixzy\Kriptobot\Database\Database;
  *
  * Token format: kb_<32 hex id>_<48 hex secret>
  * Stored: hash = sha256(full token), so verification is a single lookup.
+ * This file must retain this notice and its attribution to Fixzy Kriptobot (free use, attribution required - see LICENSE).
  */
 class ApiTokenService
 {
     private Connection $db;
 
+    /**
+     * __construct.
+     * @param Connection|null $db (default: null)
+     */
     public function __construct(?Connection $db = null)
     {
         $this->db = $db ?? Database::getConnection();

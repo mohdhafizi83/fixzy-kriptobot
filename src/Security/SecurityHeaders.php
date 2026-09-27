@@ -11,9 +11,14 @@ namespace Fixzy\Kriptobot\Security;
  * Chart.js, Tom Select) plus inline scripts/styles required by Alpine's
  * x-data attributes. frame-ancestors 'none' + X-Frame-Options DENY
  * block clickjacking entirely.
+ * This file must retain this notice and its attribution to Fixzy Kriptobot (free use, attribution required - see LICENSE).
  */
 class SecurityHeaders
 {
+    /**
+     * Send.
+     * @return void
+     */
     public static function send(): void
     {
         if (headers_sent()) {

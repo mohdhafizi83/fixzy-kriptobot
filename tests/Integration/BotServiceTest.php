@@ -15,12 +15,17 @@ use PHPUnit\Framework\TestCase;
  *  - partial updates deep-merge over the existing configuration
  *    (omitted sections like base_order/dca are NOT wiped)
  *  - csrf_token and runtime_state never leak into the stored configuration
+ * This file must retain this notice and its attribution to Fixzy Kriptobot (free use, attribution required - see LICENSE).
  */
 class BotServiceTest extends TestCase
 {
     private Connection $db;
     private BotService $service;
 
+    /**
+     * Set Up.
+     * @return void
+     */
     protected function setUp(): void
     {
         $this->db = DriverManager::getConnection([
@@ -51,6 +56,10 @@ class BotServiceTest extends TestCase
         $this->service = new BotService($this->db);
     }
 
+    /**
+     * Test Create Stores Config And Initial Runtime State.
+     * @return void
+     */
     public function testCreateStoresConfigAndInitialRuntimeState(): void
     {
         $res = $this->service->save(1, null, [
@@ -76,6 +85,10 @@ class BotServiceTest extends TestCase
         $this->assertSame(1, $bot['status']);
     }
 
+    /**
+     * Test Partial Update Deep Merges Over Existing Config.
+     * @return void
+     */
     public function testPartialUpdateDeepMergesOverExistingConfig(): void
     {
         $res = $this->service->save(1, null, [
@@ -109,6 +122,10 @@ class BotServiceTest extends TestCase
         $this->assertSame(1, $cfg['risk_management']['target_profit']);
     }
 
+    /**
+     * Test List Overrides Replace Lists Wholesale.
+     * @return void
+     */
     public function testListOverridesReplaceListsWholesale(): void
     {
         $res = $this->service->save(1, null, [
@@ -129,6 +146,10 @@ class BotServiceTest extends TestCase
         $this->assertSame([['type' => 'x']], $bot['configuration']['base_order']['conditions']);
     }
 
+    /**
+     * Test Auto Capital Stored As Zero.
+     * @return void
+     */
     public function testAutoCapitalStoredAsZero(): void
     {
         $res = $this->service->save(1, null, [
@@ -140,6 +161,10 @@ class BotServiceTest extends TestCase
         $this->assertSame('AUTO', $bot['configuration']['general']['capital']);
     }
 
+    /**
+     * Test Update Other Users Bot Throws.
+     * @return void
+     */
     public function testUpdateOtherUsersBotThrows(): void
     {
         $res = $this->service->save(1, null, [

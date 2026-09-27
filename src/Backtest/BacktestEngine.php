@@ -25,6 +25,7 @@ use Fixzy\Kriptobot\Trading\TrailingEngine;
  * - "Slippage" is not taken into account (buys/sells assumed exactly at candle close price)
  * - Trading fees are not calculated by default (configurable)
  * - Does not support TradingView Webhook / Sentiment signals (no historical data)
+ * This file must retain this notice and its attribution to Fixzy Kriptobot (free use, attribution required - see LICENSE).
  */
 class BacktestEngine
 {
@@ -36,6 +37,12 @@ class BacktestEngine
     private AuditLogger $auditLogger;
     private ExecutionGuardService $executionGuard;
 
+    /**
+     * __construct.
+     * @param BinanceDataIngester $ingester
+     * @param AuditLogger $auditLogger
+     * @param ExecutionGuardService $executionGuard
+     */
     public function __construct(
         BinanceDataIngester $ingester,
         AuditLogger $auditLogger,

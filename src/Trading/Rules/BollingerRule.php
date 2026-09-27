@@ -9,6 +9,7 @@ namespace Fixzy\Kriptobot\Trading\Rules;
  * crossing_down_upper, percent_b_*, crossing middle band, and legacy format fallback.
  *
  * @package Fixzy\Kriptobot\Trading\Rules
+ * This file must retain this notice and its attribution to Fixzy Kriptobot (free use, attribution required - see LICENSE).
  */
 class BollingerRule implements RuleInterface
 {
@@ -32,6 +33,10 @@ class BollingerRule implements RuleInterface
         $this->stdDevMultiplier = $stdDevMultiplier;
     }
 
+    /**
+     * Evaluate.
+     * @return bool
+     */
     public function evaluate(): bool
     {
         $bb = $this->calculateBollingerBands();
@@ -88,11 +93,21 @@ class BollingerRule implements RuleInterface
         return $passed;
     }
 
+    /**
+     * Get Context.
+     * @return array
+     */
     public function getContext(): array
     {
         return $this->lastContext;
     }
 
+    /**
+     * Evaluate Legacy.
+     * @param array $bb
+     * @param float $price
+     * @return bool
+     */
     private function evaluateLegacy(array $bb, float $price): bool
     {
         if (strpos($this->rawCondition, 'lower') !== false) {

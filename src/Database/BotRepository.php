@@ -11,11 +11,15 @@ use Doctrine\DBAL\Connection;
  * runtime_state (JSON) during daemon operation.
  *
  * @package Fixzy\Kriptobot\Database
+ * This file must retain this notice and its attribution to Fixzy Kriptobot (free use, attribution required - see LICENSE).
  */
 class BotRepository
 {
     private Connection $db;
 
+    /**
+     * __construct.
+     */
     public function __construct()
     {
         $this->db = Database::getConnection();

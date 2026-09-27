@@ -21,11 +21,16 @@ use RuntimeException;
  * The setup page self-locks: once password_hash is non-empty, setupRequired()
  * returns false and the wizard refuses to run again (password changes then go
  * through Settings / CLI password:reset only).
+ * This file must retain this notice and its attribution to Fixzy Kriptobot (free use, attribution required - see LICENSE).
  */
 class SetupService
 {
     private Connection $db;
 
+    /**
+     * __construct.
+     * @param Connection|null $db (default: null)
+     */
     public function __construct(?Connection $db = null)
     {
         $this->db = $db ?? Database::getConnection();
