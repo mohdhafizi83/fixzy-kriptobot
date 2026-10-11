@@ -1,0 +1,21 @@
+# Gitleaks configuration — https://github.com/gitleaks/gitleaks
+#
+# The only allowlisted entries are fixed dummy values used by the manual
+# end-to-end test script. They are not real credentials.
+
+title = "kriptobot gitleaks config"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "dummy test fixtures in manual e2e script"
+regexes = [
+  '''sk-test-1234567890abcdef''',
+  '''TNET_KEY_123''',
+  '''TNET_SECRET_456''',
+  '''supersecret123''',
+]
+paths = [
+  '''tests/manual_setup_e2e\.php''',
+]
