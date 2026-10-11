@@ -73,7 +73,7 @@ SessionGuard::requireWeb();
                 <a href="faq.php" class="hover:text-indigo-300">FAQ's</a>
                 <span class="text-indigo-400">|</span>
                 <span class="text-gray-300 font-normal">User: <?= htmlspecialchars($_SESSION['user_email']) ?></span>
-                <a href="logout.php" class="text-red-400 hover:text-red-300 ml-2">Logout</a>
+                <form method="POST" action="logout.php" class="inline"><input type="hidden" name="csrf_token" value="<?= htmlspecialchars(\Fixzy\Kriptobot\Security\SessionGuard::csrfToken()) ?>"><button type="submit" class="text-red-400 hover:text-red-300 ml-2" style="background:none;border:0;padding:0;cursor:pointer;font:inherit">Logout</button></form>
             </div>
         </div>
         <div x-show="navOpen" @click.away="navOpen = false" class="md:hidden bg-indigo-950 px-4 py-2 space-y-1 pb-4" x-transition x-cloak>
@@ -84,7 +84,7 @@ SessionGuard::requireWeb();
             <a href="faq.php" class="block py-2 hover:text-indigo-300">📚 FAQ</a>
             <hr class="border-indigo-800 my-1">
             <span class="block py-1 text-gray-400 text-xs"><?= htmlspecialchars($_SESSION['user_email']) ?></span>
-            <a href="logout.php" class="block py-2 text-red-400 font-semibold">🚪 Logout</a>
+            <form method="POST" action="logout.php"><input type="hidden" name="csrf_token" value="<?= htmlspecialchars(\Fixzy\Kriptobot\Security\SessionGuard::csrfToken()) ?>"><button type="submit" class="block py-2 text-red-400 font-semibold" style="background:none;border:0;padding:0;cursor:pointer;font:inherit;text-align:left;width:100%">🚪 Logout</button></form>
         </div>
     </nav>
 

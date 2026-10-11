@@ -45,17 +45,16 @@ if (empty($aiCfg['api_key'])) {
 
 $userId = (int)$_SESSION['user_id'];
 
-// CSRF Protection for state-changing actions
+// CSRF Protection — every action on this endpoint is state-changing or
+// session-scoped; require a valid token for all of them (fail-closed).
 $input = json_decode(file_get_contents('php://input'), true) ?? $_POST;
 $action = $input['action'] ?? 'chat';
 
-if (in_array($action, ['chat'])) {
-    $clientToken = $input['csrf_token'] ?? '';
-    if (!SessionGuard::verifyCsrf($clientToken)) {
-        http_response_code(403);
-        echo json_encode(['error' => 'Invalid CSRF token']);
-        exit;
-    }
+$clientToken = $input['csrf_token'] ?? '';
+if (!SessionGuard::verifyCsrf($clientToken)) {
+    http_response_code(403);
+    echo json_encode(['error' => 'Invalid CSRF token']);
+    exit;
 }
 
 $message   = trim($input['message'] ?? '');

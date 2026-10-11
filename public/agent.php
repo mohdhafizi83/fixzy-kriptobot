@@ -103,7 +103,7 @@ if (!$settings['agent_enabled'] && $aiConfigured) {
                     <span class="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] w-4 h-4 rounded-full flex items-center justify-center" x-text="pendingDecisions.length"></span>
                 </button>
                 <span class="text-gray-300 font-normal"><?= htmlspecialchars($_SESSION['user_email']) ?></span>
-                <a href="logout.php" class="text-red-400 hover:text-red-300 ml-2">Logout</a>
+                <form method="POST" action="logout.php" class="inline"><input type="hidden" name="csrf_token" value="<?= htmlspecialchars(\Fixzy\Kriptobot\Security\SessionGuard::csrfToken()) ?>"><button type="submit" class="text-red-400 hover:text-red-300 ml-2" style="background:none;border:0;padding:0;cursor:pointer;font:inherit">Logout</button></form>
             </div>
         </div>
         <div x-show="navOpen" @click.away="navOpen = false" class="md:hidden bg-indigo-950 px-4 py-2 space-y-1 pb-4" x-transition x-cloak>
@@ -116,7 +116,7 @@ if (!$settings['agent_enabled'] && $aiConfigured) {
             <button @click="showDecisions = !showDecisions; navOpen = false" class="block w-full text-left py-2 hover:text-indigo-300" x-show="pendingDecisions.length > 0">⏳ Pending ({{ pendingDecisions.length }})</button>
             <hr class="border-indigo-800 my-1">
             <span class="block py-1 text-gray-400 text-xs"><?= htmlspecialchars($_SESSION['user_email']) ?></span>
-            <a href="logout.php" class="block py-2 text-red-400 font-semibold">🚪 Logout</a>
+            <form method="POST" action="logout.php"><input type="hidden" name="csrf_token" value="<?= htmlspecialchars(\Fixzy\Kriptobot\Security\SessionGuard::csrfToken()) ?>"><button type="submit" class="block py-2 text-red-400 font-semibold" style="background:none;border:0;padding:0;cursor:pointer;font:inherit;text-align:left;width:100%">🚪 Logout</button></form>
         </div>
     </nav>
 
