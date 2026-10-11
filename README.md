@@ -249,7 +249,7 @@ The web layer is hardened by default — no extra configuration required:
 |---|---|
 | **Real login** | Password form with bcrypt verification; no auto-login anywhere. First install forces the setup wizard (`setup.php` or `php bin/kriptobot setup`) where you create the admin account; the password lives only as a bcrypt hash in the DB. Reset via `php bin/kriptobot password:reset`. |
 | **Session hardening** | HttpOnly + SameSite=Lax cookies, `Secure` flag auto-on under HTTPS, 8-hour idle timeout, session ID regenerated on login (fixation-proof). |
-| **CSRF** | Every session-authenticated state-changing API call requires a valid `X-CSRF-Token` (constant-time compared). Bearer-token clients are exempt by design. |
+| **CSRF** | Every session-authenticated state-changing API call requires a valid `X-CSRF-Token` (constant-time compared). Bearer-token clients are exempt by design. Logout is POST-only + CSRF-token protected, so third-party pages can't force-logout you. |
 | **Rate limiting** | Login: 10 attempts / 15 min per IP (429). API: 300 req/min per IP. Webhooks: 60/min per IP. APCu-backed with a file fallback so it works on shared hosting without APCu. |
 | **Webhook auth** | TradingView secret compared with `hash_equals` (timing-safe). Telegram webhook **refuses all traffic** unless `TELEGRAM_WEBHOOK_SECRET` is configured, plus `update_id` replay protection. |
 | **Security headers** | CSP (locked to the CDNs the UI uses), `X-Frame-Options: DENY`, `frame-ancestors 'none'`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: same-origin`, HSTS on HTTPS. |
