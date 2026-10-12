@@ -1,4 +1,6 @@
 # Fixzy Kriptobot
+[![CI](https://github.com/mohdhafizi83/fixzy-kriptobot/actions/workflows/ci.yml/badge.svg)](https://github.com/mohdhafizi83/fixzy-kriptobot/actions/workflows/ci.yml)
+
 
 > **The self-hosted crypto trading bot that never trades on faith.**
 
