@@ -29,8 +29,8 @@ SessionGuard::requireWeb(); // redirects to login.php when unauthenticated
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="robots" content="noindex, nofollow">
     <title>Fixzy Kriptobot - Dashboard</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <link rel="stylesheet" href="assets/css/app.css">
+    <script defer src="assets/js/alpine.min.js"></script>
     <style>[x-cloak] { display: none !important; }</style>
 </head>
 <body class="bg-gray-100 text-gray-800 font-sans">
@@ -41,7 +41,10 @@ SessionGuard::requireWeb(); // redirects to login.php when unauthenticated
                 <button @click="navOpen = !navOpen" class="md:hidden p-1">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
                 </button>
-                <div class="text-lg md:text-xl font-bold tracking-wider">🤖 KRIPTOBOT</div>
+                <div class="flex items-center space-x-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 text-indigo-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>
+                    <div class="text-lg md:text-xl font-bold tracking-wider">KRIPTOBOT</div>
+                </div>
             </div>
             <div class="hidden md:flex items-center space-x-4 text-sm font-semibold">
                 <a href="index.php" class="text-indigo-300 border-b-2 border-indigo-300 pb-1">Dashboard</a>
@@ -54,14 +57,14 @@ SessionGuard::requireWeb(); // redirects to login.php when unauthenticated
             </div>
         </div>
         <div x-show="navOpen" @click.away="navOpen = false" class="md:hidden bg-indigo-950 px-4 py-2 space-y-1 pb-4" x-transition x-cloak>
-            <a href="index.php" class="block py-2 text-indigo-300 font-semibold">📊 Dashboard</a>
-            <a href="agent.php" class="block py-2 hover:text-indigo-300">🤖 AI Agent</a>
-            <a href="settings.php" class="block py-2 hover:text-indigo-300">🆕 New Bot</a>
-            <a href="configure.php" class="block py-2 hover:text-indigo-300">⚙️ Settings</a>
-            <a href="faq.php" class="block py-2 hover:text-indigo-300">📚 FAQ</a>
+            <a href="index.php" class="block py-2 text-indigo-300 font-semibold"><svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 inline -mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" x2="18" y1="20" y2="10"/><line x1="12" x2="12" y1="20" y2="4"/><line x1="6" x2="6" y1="20" y2="14"/></svg> Dashboard</a>
+            <a href="agent.php" class="block py-2 hover:text-indigo-300"><svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 inline -mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg> AI Agent</a>
+            <a href="settings.php" class="block py-2 hover:text-indigo-300"><svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 inline -mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M8 12h8"/><path d="M12 8v8"/></svg> New Bot</a>
+            <a href="configure.php" class="block py-2 hover:text-indigo-300"><svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 inline -mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg> Settings</a>
+            <a href="faq.php" class="block py-2 hover:text-indigo-300"><svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 inline -mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg> FAQ</a>
             <hr class="border-indigo-800 my-1">
             <span class="block py-1 text-gray-400 text-xs"><?= htmlspecialchars($_SESSION['user_email']) ?></span>
-            <form method="POST" action="logout.php"><input type="hidden" name="csrf_token" value="<?= htmlspecialchars(\Fixzy\Kriptobot\Security\SessionGuard::csrfToken()) ?>"><button type="submit" class="block py-2 text-red-400 font-semibold" style="background:none;border:0;padding:0;cursor:pointer;font:inherit;text-align:left;width:100%">🚪 Logout</button></form>
+            <form method="POST" action="logout.php"><input type="hidden" name="csrf_token" value="<?= htmlspecialchars(\Fixzy\Kriptobot\Security\SessionGuard::csrfToken()) ?>"><button type="submit" class="block py-2 text-red-400 font-semibold" style="background:none;border:0;padding:0;cursor:pointer;font:inherit;text-align:left;width:100%"><svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 inline -mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg> Logout</button></form>
         </div>
     </nav>
 
@@ -109,7 +112,7 @@ SessionGuard::requireWeb(); // redirects to login.php when unauthenticated
                                         <button @click="testConn(api)" :disabled="api._status === 'loading'"
                                                 class="text-[10px] bg-indigo-50 hover:bg-indigo-100 text-indigo-700 px-2 py-1 rounded border border-indigo-200 font-bold disabled:opacity-50 transition-all focus:outline-none">
                                             <span x-show="api._status !== 'loading'">Test</span>
-                                            <span x-show="api._status === 'loading'">⏳</span>
+                                            <span x-show="api._status === 'loading'">…</span>
                                         </button>
                                     </div>
                                 </div>
@@ -147,8 +150,8 @@ SessionGuard::requireWeb(); // redirects to login.php when unauthenticated
             <div class="lg:col-span-2">
                 <div class="bg-white rounded-xl shadow-md p-6">
                     <div class="flex justify-between items-center mb-3">
-                        <h3 class="font-bold text-lg">📈 Live Price Ticks <span class="text-xs text-gray-400 font-normal">(last 250, auto-refresh 5s)</span></h3>
-                        <span id="tick-status" class="text-xs text-gray-400">⏳ Loading...</span>
+                        <h3 class="font-bold text-lg"><svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 inline -mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2"/></svg> Live Price Ticks <span class="text-xs text-gray-400 font-normal">(last 250, auto-refresh 5s)</span></h3>
+                        <span id="tick-status" class="text-xs text-gray-400">Loading...</span>
                     </div>
                     <div style="max-height:300px;overflow-y:auto" class="border rounded-lg">
                         <table class="w-full text-xs font-mono">
@@ -173,8 +176,10 @@ SessionGuard::requireWeb(); // redirects to login.php when unauthenticated
 
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <template x-if="bots.length === 0">
-                            <div class="col-span-full p-6 text-center text-gray-500 bg-gray-50 rounded-xl">
-                                No bots configured. Please click "+ Create New Bot" to get started.
+                            <div class="col-span-full flex flex-col items-center gap-2 p-10 text-center text-gray-400 bg-gray-50 border border-dashed border-gray-300 rounded-xl">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>
+                                <p class="text-sm font-medium">No bots yet</p>
+                                <p class="text-xs">Create your first bot to start trading on testnet.</p>
                             </div>
                         </template>
                         <template x-for="bot in bots" :key="bot.id">
@@ -188,7 +193,7 @@ SessionGuard::requireWeb(); // redirects to login.php when unauthenticated
                                             <span x-show="bot.active" class="bg-green-100 text-green-700 px-2 py-0.5 rounded text-xs font-bold">● ON</span>
                                             <span x-show="!bot.active" class="bg-gray-200 text-gray-500 px-2 py-0.5 rounded text-xs font-bold">○ OFF</span>
                                             <span class="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded text-xs font-bold" x-text="bot.pair"></span>
-                                            <span x-show="bot.isRecovery" class="bg-orange-100 text-orange-700 px-2 py-0.5 rounded text-xs font-bold">🚑 Recovery</span>
+                                            <span x-show="bot.isRecovery" class="bg-orange-100 text-orange-700 px-2 py-0.5 rounded text-xs font-bold">Recovery</span>
                                         </div>
                                     </div>
                                     <div class="text-right">
@@ -216,7 +221,7 @@ SessionGuard::requireWeb(); // redirects to login.php when unauthenticated
                                     </div>
                                 </div>
                                 <div x-show="!(bot.holdings > 0)" class="bg-gray-50 rounded-lg p-3 mb-3 text-center">
-                                    <span class="text-sm text-gray-400">⏳ Idle — waiting for entry signal</span>
+                                    <span class="text-sm text-gray-400">Idle — waiting for entry signal</span>
                                 </div>
 
                                 <!-- Conditions -->
@@ -250,10 +255,10 @@ SessionGuard::requireWeb(); // redirects to login.php when unauthenticated
 
                                 <!-- Actions -->
                                 <div class="flex gap-2 mt-3 pt-3 border-t">
-                                    <a :href="'settings.php?id=' + bot.id" class="text-indigo-600 hover:bg-indigo-50 px-3 py-1 rounded text-sm font-medium transition">✏️ Edit</a>
-                                    <a :href="'settings.php?id=' + bot.id + '&backtest=1'" class="text-orange-600 hover:bg-orange-50 px-3 py-1 rounded text-sm font-medium transition">📊 Backtest</a>
-                                    <button x-show="bot.isRecovery" @click="deleteBot(bot)" class="text-red-500 hover:bg-red-50 px-3 py-1 rounded text-sm font-medium transition ml-auto">🛑 Stop Recovery</button>
-                                    <button x-show="!bot.isRecovery" @click="deleteBot(bot)" class="text-red-400 hover:bg-red-50 px-3 py-1 rounded text-sm font-medium transition ml-auto">🗑️ Delete</button>
+                                    <a :href="'settings.php?id=' + bot.id" class="text-indigo-600 hover:bg-indigo-50 px-3 py-1 rounded text-sm font-medium transition">Edit</a>
+                                    <a :href="'settings.php?id=' + bot.id + '&backtest=1'" class="text-orange-600 hover:bg-orange-50 px-3 py-1 rounded text-sm font-medium transition">Backtest</a>
+                                    <button x-show="bot.isRecovery" @click="deleteBot(bot)" class="text-red-500 hover:bg-red-50 px-3 py-1 rounded text-sm font-medium transition ml-auto">Stop Recovery</button>
+                                    <button x-show="!bot.isRecovery" @click="deleteBot(bot)" class="text-red-400 hover:bg-red-50 px-3 py-1 rounded text-sm font-medium transition ml-auto">Delete</button>
                                 </div>
                             </div>
                         </template>

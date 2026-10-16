@@ -70,12 +70,14 @@ $csrf = SessionGuard::csrfToken();
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="robots" content="noindex, nofollow">
     <title>Fixzy Kriptobot — Setup</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="assets/css/app.css">
 </head>
 <body class="bg-gray-900 min-h-screen flex items-center justify-center p-4">
     <div class="w-full max-w-lg">
         <div class="text-center mb-6">
-            <div class="text-3xl mb-2">🤖</div>
+            <div class="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-brand/15 border border-brand/30 mb-3">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8 text-indigo-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>
+            </div>
             <h1 class="text-xl font-bold text-white tracking-wider">FIXZY KRIPTOBOT</h1>
             <p class="text-gray-400 text-sm mt-1">Welcome! Let's set up your trading bot — takes about 2 minutes.</p>
         </div>
@@ -83,7 +85,7 @@ $csrf = SessionGuard::csrfToken();
         <?php if ($done): ?>
             <div class="bg-gray-800 rounded-xl shadow-lg p-6 space-y-4">
                 <div class="bg-green-500/20 border border-green-500 text-green-200 text-sm rounded px-3 py-2">
-                    ✅ Setup complete! Your account and encryption keys are ready.
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 inline -mt-0.5 text-green-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg> Setup complete! Your account and encryption keys are ready.
                 </div>
                 <p class="text-gray-300 text-sm">
                     You can now sign in to your dashboard. Optional integrations

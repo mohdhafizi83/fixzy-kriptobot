@@ -5,6 +5,27 @@ All notable changes to Fixzy Kriptobot are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+### Added
+- Docker support: `Dockerfile` + `docker-compose.yml` (healthcheck, optional
+  trading-daemon profile, `.env` bind mount). One-command install:
+  `docker compose up -d`.
+- Self-hosted front-end assets (Tailwind build, Alpine.js, Axios, Chart.js,
+  Tom Select, Inter font) — the UI no longer loads anything from public CDNs,
+  so the dashboard works fully offline / on air-gapped hosts.
+- Tailwind design system (`tailwind.config.js` + `assets/src/input.css`,
+  build via `npm run build:css`).
+- Brand logo mark (SVG) replacing emoji across all pages; Lucide-style inline
+  icons in navigation; improved empty states.
+- GitHub Release workflow (tag `v*` → release notes + GHCR container image).
+- Docker quickstart in `docs/INSTALL.md`.
+
+### Fixed
+- First-run on Docker: when no `.env` existed, the setup wizard copied
+  `.env.example` verbatim, carrying the placeholder `DB_PATH` and leaving the
+  app unable to open its database after setup. Compose now bind-mounts the
+  host `.env` so configuration stays consistent.
+
 ## [0.1.0] - 2026-09-19
 
 First public release. The 3Commas self-hosting alternative.

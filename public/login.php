@@ -74,12 +74,14 @@ $csrf = SessionGuard::csrfToken();
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="robots" content="noindex, nofollow">
     <title>Fixzy Kriptobot — Login</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="assets/css/app.css">
 </head>
 <body class="bg-gray-900 min-h-screen flex items-center justify-center p-4">
     <div class="w-full max-w-sm">
         <div class="text-center mb-6">
-            <div class="text-3xl mb-2">🤖</div>
+            <div class="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-brand/15 border border-brand/30 mb-3">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8 text-indigo-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>
+            </div>
             <h1 class="text-xl font-bold text-white tracking-wider">FIXZY KRIPTOBOT</h1>
             <p class="text-gray-400 text-sm mt-1">Sign in to your dashboard</p>
         </div>

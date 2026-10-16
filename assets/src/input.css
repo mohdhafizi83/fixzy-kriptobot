@@ -1,0 +1,60 @@
+/* Kriptobot design system — compiled Tailwind + shared component classes.
+   Build: npm run build:css  (output: public/assets/css/app.css) */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ---- Inter, self-hosted (no external CDN) ---- */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('../fonts/inter-var.woff2') format('woff2');
+}
+
+@layer base {
+  html { -webkit-text-size-adjust: 100%; }
+  body { font-feature-settings: 'cv02','cv03','cv04','cv11'; }
+  ::selection { background: #6366f1; color: #fff; }
+}
+
+@layer components {
+  /* Shared card */
+  .kb-card {
+    @apply bg-white rounded-xl shadow-card border border-gray-200 p-6 transition-shadow hover:shadow-card-hover;
+  }
+  /* Primary / secondary buttons */
+  .kb-btn-primary {
+    @apply inline-flex items-center justify-center gap-1.5 bg-brand hover:bg-brand-dark text-white font-semibold px-4 py-2 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-brand focus:ring-offset-1 disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  .kb-btn-ghost {
+    @apply inline-flex items-center justify-center gap-1.5 text-brand hover:bg-indigo-50 font-medium px-3 py-1.5 rounded-lg transition-colors;
+  }
+  /* Status badges */
+  .kb-badge { @apply inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-bold; }
+  .kb-badge-on  { @apply bg-green-100 text-green-700; }
+  .kb-badge-off { @apply bg-gray-200 text-gray-500; }
+  .kb-badge-warn{ @apply bg-orange-100 text-orange-700; }
+  .kb-badge-info{ @apply bg-indigo-50 text-indigo-700; }
+  /* Empty state block */
+  .kb-empty {
+    @apply col-span-full flex flex-col items-center justify-center gap-2 p-10 text-center text-gray-400 bg-gray-50 border border-dashed border-gray-300 rounded-xl;
+  }
+  .kb-empty svg { @apply w-8 h-8 text-gray-300; }
+  /* Dark auth screens (login / setup) */
+  .kb-auth { @apply min-h-screen flex items-center justify-center p-4 bg-ink text-gray-200; }
+  .kb-auth-card { @apply w-full max-w-sm bg-ink-surface border border-ink-border rounded-2xl shadow-xl p-6 space-y-4; }
+  .kb-auth-input { @apply w-full rounded-lg bg-black/30 text-white px-3 py-2 border border-ink-border focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand; }
+  .kb-auth-label { @apply block text-sm text-gray-400 mb-1; }
+}
+
+/* Consistent scrollbars across pages */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 8px; }
+::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+/* Alpine cloak */
+[x-cloak] { display: none !important; }

@@ -17,8 +17,8 @@ SessionGuard::requireWeb();
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Fixzy Kriptobot - Frequently Asked Questions</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <link rel="stylesheet" href="assets/css/app.css">
+    <script defer src="assets/js/alpine.min.js"></script>
     <style>
         [x-cloak] { display: none !important; }
         ::-webkit-scrollbar { width: 8px; }
@@ -34,7 +34,7 @@ SessionGuard::requireWeb();
                 <button @click="navOpen = !navOpen" class="md:hidden p-1">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
                 </button>
-                <div class="text-lg md:text-xl font-bold tracking-wider">🤖 KRIPTOBOT</div>
+                <div class="flex items-center space-x-2"><svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 text-indigo-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg><div class="text-lg md:text-xl font-bold tracking-wider">KRIPTOBOT</div></div>
             </div>
             <div class="hidden md:flex items-center space-x-4 text-sm font-semibold">
                 <a href="index.php" class="hover:text-indigo-300 transition">Dashboard</a>
@@ -47,14 +47,14 @@ SessionGuard::requireWeb();
             </div>
         </div>
         <div x-show="navOpen" @click.away="navOpen = false" class="md:hidden bg-indigo-950 px-4 py-2 space-y-1 pb-4" x-transition x-cloak>
-            <a href="index.php" class="block py-2 hover:text-indigo-300">📊 Dashboard</a>
-            <a href="agent.php" class="block py-2 hover:text-indigo-300">🤖 AI Agent</a>
-            <a href="settings.php" class="block py-2 hover:text-indigo-300">🆕 New Bot</a>
-            <a href="configure.php" class="block py-2 hover:text-indigo-300">⚙️ Settings</a>
-            <a href="faq.php" class="block py-2 text-indigo-300 font-semibold">📚 FAQ</a>
+            <a href="index.php" class="block py-2 hover:text-indigo-300"><svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 inline -mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" x2="18" y1="20" y2="10"/><line x1="12" x2="12" y1="20" y2="4"/><line x1="6" x2="6" y1="20" y2="14"/></svg> Dashboard</a>
+            <a href="agent.php" class="block py-2 hover:text-indigo-300"><svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 inline -mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg> AI Agent</a>
+            <a href="settings.php" class="block py-2 hover:text-indigo-300"<svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 inline -mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M8 12h8"/><path d="M12 8v8"/></svg> New Bot</a>
+            <a href="configure.php" class="block py-2 hover:text-indigo-300"<svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 inline -mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg> Settings</a>
+            <a href="faq.php" class="block py-2 text-indigo-300 font-semibold"<svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 inline -mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg> FAQ</a>
             <hr class="border-indigo-800 my-1">
             <span class="block py-1 text-gray-400 text-xs"><?= htmlspecialchars($_SESSION['user_email']) ?></span>
-            <form method="POST" action="logout.php"><input type="hidden" name="csrf_token" value="<?= htmlspecialchars(\Fixzy\Kriptobot\Security\SessionGuard::csrfToken()) ?>"><button type="submit" class="block py-2 text-red-400 font-semibold" style="background:none;border:0;padding:0;cursor:pointer;font:inherit;text-align:left;width:100%">🚪 Logout</button></form>
+            <form method="POST" action="logout.php"><input type="hidden" name="csrf_token" value="<?= htmlspecialchars(\Fixzy\Kriptobot\Security\SessionGuard::csrfToken()) ?>"><button type="submit" class="block py-2 text-red-400 font-semibold" style="background:none;border:0;padding:0;cursor:pointer;font:inherit;text-align:left;width:100%"<svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 inline -mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg> Logout</button></form>
         </div>
     </nav>
 
