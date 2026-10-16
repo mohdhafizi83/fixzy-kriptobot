@@ -1,0 +1,44 @@
+# Fixzy Kriptobot — one-command stack.
+#
+# Before first run:
+#   cp .env.example .env
+#   # In .env set:  DB_PATH=/app/database/kriptobot.sqlite   (path INSIDE the container)
+#   # Generate keys: php -r "echo 'base64:' . base64_encode(random_bytes(32));"  -> AES_MASTER_KEY
+#
+# Note: .env is bind-mounted into the container because the app reads its
+# configuration from the .env file (not only from environment variables).
+#
+# Start web UI only:   docker compose up -d
+# Start web + trading daemon:  docker compose --profile daemon up -d
+# Then open http://localhost:8080  (first run = setup wizard)
+
+services:
+  web:
+    build: .
+    ports:
+      - "8080:8080"
+    env_file: .env
+    volumes:
+      - ./.env:/app/.env
+      - ./database:/app/database
+      - ./storage/logs:/app/storage/logs
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8080/login.php"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+
+  # Optional trading engine (runs one daemon pass every 60s).
+  # Enable with: docker compose --profile daemon up -d
+  daemon:
+    profiles: ["daemon"]
+    build: .
+    env_file: .env
+    volumes:
+      - ./.env:/app/.env
+      - ./database:/app/database
+      - ./storage/logs:/app/storage/logs
+    command: ["sh", "-c", "while true; do php bin/bot_daemon.php; sleep 60; done"]
+    restart: unless-stopped

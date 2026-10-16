@@ -9,6 +9,31 @@ running daemon on Binance Testnet.
 
 ---
 
+## Quickstart with Docker (recommended)
+
+No PHP/Composer needed on the host — Docker handles everything:
+
+```bash
+git clone https://github.com/mohdhafizi83/fixzy-kriptobot.git
+cd fixzy-kriptobot
+cp .env.example .env
+# Edit .env — two things are required:
+#   1. DB_PATH=/app/database/kriptobot.sqlite   (this is the path INSIDE the container)
+#   2. AES_MASTER_KEY=base64:<key>              (generate: php -r "echo base64_encode(random_bytes(32));"
+#                                                or any 44-char base64 string)
+docker compose up -d          # web UI only
+# docker compose --profile daemon up -d   # web UI + trading engine (60s loop)
+```
+
+Open <http://localhost:8080> — the setup wizard creates your admin account.
+Data (SQLite + logs) persists in `./database/` and `./storage/logs/` on the host.
+The `.env` file is mounted into the container because the app reads its
+configuration from that file.
+
+For a native (no-Docker) install, continue below.
+
+---
+
 ## 1. Requirements
 
 | Component | Version / Notes |
