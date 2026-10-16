@@ -17,9 +17,10 @@ jobs:
       - name: Generate release notes from CHANGELOG
         run: |
           TAG=${GITHUB_REF_NAME}
+          VER=${GITHUB_REF_NAME#v}   # CHANGELOG guna [1.2.3] tanpa 'v'
           if [ -f CHANGELOG.md ]; then
-            awk -v tag="$TAG" '
-              $0 ~ "## \\[" tag {found=1; next}
+            awk -v tag="$VER" -v tagv="$TAG" '
+              ($0 ~ "## \\[" tagv || $0 ~ "## \\[" tag) {found=1; next}
               found && /^## \[/ {exit}
               found {print}
             ' CHANGELOG.md > release_notes.md
