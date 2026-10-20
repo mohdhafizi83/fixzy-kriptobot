@@ -32,6 +32,8 @@ use Fixzy\Kriptobot\Intelligence\AiCopilot\DataPackBuilder;
 use Fixzy\Kriptobot\Intelligence\AiCopilot\L1Analyzer;
 use Fixzy\Kriptobot\Service\AgentSettingsService;
 use Fixzy\Kriptobot\Service\FeatureStatusService;
+use Fixzy\Kriptobot\Trading\AdvisorBacktestGate;
+use Fixzy\Kriptobot\Trading\AdvisorParams;
 use Fixzy\Kriptobot\Trading\ExchangeService;
 
 Config::load();
@@ -251,6 +253,28 @@ $runOnce = static function () use ($onlyBot, $candlesPerTf): void {
                 $meets = $decision['confidence'] >= $ai['min_confidence'];
                 // confidence gate: below threshold keeps the PREVIOUS params (brief §4)
                 $params = $meets ? $decision['params'] : ($cache['params'] ?? $decision['params']);
+
+                // Phase 3 backtest gate (advisor/active only; shadow dictates, never applies).
+                $paramsApproved = true;
+                $gateDetail = null;
+                $paramsHash = AdvisorParams::paramsHash($params);
+                if ($mode !== 'shadow') {
+                    if (!$meets) {
+                        $paramsApproved = (bool)($cache['params_approved'] ?? false);
+                        $gateDetail = $cache['gate'] ?? null;
+                    } elseif (($cache['params_hash'] ?? null) === $paramsHash && isset($cache['params_approved'])) {
+                        $paramsApproved = (bool)$cache['params_approved']; // same params: reuse verdict
+                        $gateDetail = $cache['gate'] ?? null;
+                    } else {
+                        $needed = max(6, (int)ceil(30 * 60 / DataPackBuilder::tfMinutes($tf)));
+                        $gateDetail = AdvisorBacktestGate::evaluate(
+                            array_slice($tfCandles[$tf] ?? [], -$needed),
+                            $params,
+                            AdvisorParams::staticParams(json_decode((string)$botData['configuration'], true) ?: [])
+                        );
+                        $paramsApproved = (bool)$gateDetail['approved'];
+                    }
+                }
                 $state['ai_copilot_cache'] = [
                     'decision' => $decision,
                     'params' => $params,
@@ -259,6 +283,9 @@ $runOnce = static function () use ($onlyBot, $candlesPerTf): void {
                     'created_at' => time(),
                     'trust_mode' => $mode,
                     'meets_confidence' => $meets,
+                    'params_hash' => $paramsHash,
+                    'params_approved' => $paramsApproved,
+                    'gate' => $gateDetail,
                 ];
                 // Targeted atomic write: only our cache key is touched, so a
                 // daemon state write during the (slow) LLM call is never

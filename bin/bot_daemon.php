@@ -422,7 +422,26 @@ while (true) {
             if ($aiCopilot['enabled'] && $aiCopilotMode === 'off') {
                 echo "      🤖 [AI COPILOT] Bot #{$botId} configured '{$aiCopilot['trust_level']}' held OFF (agent switch or AI feature not enabled).\n";
             } elseif ($aiCopilotMode !== 'off') {
-                echo "      🤖 [AI COPILOT] Bot #{$botId} effective trust level: {$aiCopilotMode} (Phase 0: log only, no LLM calls).\n";
+                echo "      🤖 [AI COPILOT] Bot #{$botId} effective trust level: {$aiCopilotMode}.\n";
+            }
+            // --- AI COPILOT (Phase 3): advisor parameter injection -----------
+            // Rules are unchanged; only the SOURCE of a few parameters changes.
+            // Every gate (confidence, freshness, backtest) fails safe to the
+            // bot's static config, and RiskGuard still clamps downstream.
+            if (($aiCopilotMode === 'advisor' || $aiCopilotMode === 'active') && isset($state['ai_copilot_cache'])) {
+                $adv = \Fixzy\Kriptobot\Trading\AdvisorParams::apply(
+                    $config,
+                    $state['ai_copilot_cache'],
+                    $aiCopilotMode,
+                    (int)$aiCopilot['cache_ttl_seconds'],
+                    time()
+                );
+                if ($adv['applied'] && $adv['changed'] !== []) {
+                    $config = $adv['config'];
+                    echo "      🧠 [ADVISOR] Bot #{$botId} params tuned by L1: " . implode(', ', $adv['changed']) . "\n";
+                } elseif (!$adv['applied']) {
+                    echo "      🧠 [ADVISOR] Bot #{$botId} keeping static params ({$adv['reason']}).\n";
+                }
             }
             // ----------------------------------------------------------------
 

@@ -56,6 +56,19 @@ foreach ($botRows as $r) {
 $decisions = [];
 $actions = [];
 $outcomes = [];
+$pnl7d = 0.0;
+if ($selected !== null) {
+    $pnl7dRow = $db->fetchAllAssociative(
+        "SELECT audit_data FROM trade_logs WHERE bot_id = ? AND created_at >= ? ORDER BY id ASC",
+        [$selectedId, date('Y-m-d H:i:s', time() - 7 * 86400)]
+    );
+    foreach ($pnl7dRow as $r) {
+        $ad = json_decode((string)$r['audit_data'], true) ?: [];
+        if (isset($ad['pnl_percent'])) {
+            $pnl7d += (float)$ad['pnl_percent'];
+        }
+    }
+}
 if ($selected !== null) {
     $decisions = $db->fetchAllAssociative(
         "SELECT id, created_at, context_data FROM audit_logs
@@ -165,10 +178,16 @@ $aiConfigured = $aiCfg['api_key'] !== '';
                         conf=<?= $esc($c['decision']['confidence']) ?>
                         (<?= $esc($c['tf']) ?> candle <?= date('Y-m-d H:i', intdiv((int)$c['candle_time'], 1000)) ?>,
                         age <?= max(0, time() - (int)$c['created_at']) ?>s,
-                        <?= !empty($c['meets_confidence']) ? 'confidence OK' : 'BELOW confidence' ?>)
+                        <?= !empty($c['meets_confidence']) ? 'confidence OK' : 'BELOW confidence' ?>,
+                        <?php if ($selected['mode'] === 'advisor' || $selected['mode'] === 'active'): ?>
+                            backtest gate: <?= !empty($c['params_approved']) ? 'PASSED — params live' : 'not passed — static params' ?>
+                        <?php else: ?>
+                            shadow (dictation only)
+                        <?php endif; ?>)
                     <?php else: ?>
                         No cached L1 decision yet for this bot.
                     <?php endif; ?>
+                    · 7-day realized: <b style="color: <?= $pnl7d >= 0 ? '#047857' : '#b91c1c' ?>"><?= $pnl7d >= 0 ? '+' : '' ?><?= number_format($pnl7d, 2) ?>%</b>
                 </span>
             <?php endif; ?>
         </div>
