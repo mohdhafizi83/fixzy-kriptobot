@@ -259,7 +259,8 @@ $runOnce = static function () use ($onlyBot, $candlesPerTf): void {
                 // ride a cache that has no real verdict.
                 $paramsApproved = false;
                 $gateDetail = null;
-                $paramsHash = AdvisorParams::paramsHash($params);
+                $staticParams = AdvisorParams::staticParams(json_decode((string)$botData['configuration'], true) ?: []);
+                $paramsHash = AdvisorParams::paramsHash($params, $staticParams, $tf);
                 if (!$meets) {
                     // previous params kept: their verdict stands only if it
                     // was a real one (gate detail present).
@@ -274,7 +275,7 @@ $runOnce = static function () use ($onlyBot, $candlesPerTf): void {
                     $gateDetail = AdvisorBacktestGate::evaluate(
                         array_slice($tfCandles[$tf] ?? [], -$needed),
                         $params,
-                        AdvisorParams::staticParams(json_decode((string)$botData['configuration'], true) ?: [])
+                        $staticParams
                     );
                     $paramsApproved = (bool)$gateDetail['approved'];
                 }
@@ -293,13 +294,21 @@ $runOnce = static function () use ($onlyBot, $candlesPerTf): void {
                 // Targeted atomic write: only our cache key is touched, so a
                 // daemon state write during the (slow) LLM call is never
                 // clobbered — json_set applies to the CURRENT row value.
-                $conn->executeStatement(
-                    "UPDATE bots SET runtime_state = json_set(
+                $cacheJson = (string)json_encode($state['ai_copilot_cache']);
+                $writeSql = "UPDATE bots SET runtime_state = json_set(
                         CASE WHEN json_valid(runtime_state) AND json_type(runtime_state) = 'object'
                              THEN runtime_state ELSE '{}' END,
-                        '$.ai_copilot_cache', json(?)) WHERE id = ?",
-                    [(string)json_encode($state['ai_copilot_cache']), $botId]
+                        '$.ai_copilot_cache', json(?)) WHERE id = ?";
+                $conn->executeStatement($writeSql, [$cacheJson, $botId]);
+                // F8 mitigation: a daemon wholesale state write can land between
+                // our read and write and wipe the cache — verify and retry once.
+                $persisted = $conn->fetchOne(
+                    "SELECT json_extract(runtime_state, '$.ai_copilot_cache.candle_time') FROM bots WHERE id = ?",
+                    [$botId]
                 );
+                if ((int)$persisted !== $candleTime) {
+                    $conn->executeStatement($writeSql, [$cacheJson, $botId]);
+                }
                 $auditLogger->log($botId, $userId, 'AI_L1_DECISION', sprintf(
                     'L1 %s: %s/%s conf=%.2f (%s)',
                     $tf,

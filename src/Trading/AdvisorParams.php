@@ -75,10 +75,11 @@ class AdvisorParams
             if (!is_numeric($params[$l1Key])) {
                 return $reject("param {$l1Key} not numeric");
             }
-            $value = $l1Key === 'max_dca_steps' ? (int)$params[$l1Key] : (float)$params[$l1Key];
-            if (!is_finite($value)) {
+            $num = (float)$params[$l1Key];
+            if (!is_finite($num)) {
                 return $reject("param {$l1Key} not finite");
             }
+            $value = $l1Key === 'max_dca_steps' ? (int)$num : $num;
             // The cache is untrusted input (direct DB writes, other writers):
             // re-check ranges here, never rely on L1Validator having run.
             [$lo, $hi] = L1Validator::PARAM_RANGES[$l1Key];
@@ -117,14 +118,22 @@ class AdvisorParams
         ];
     }
 
-    /** Stable hash of the four tuned params (for verdict reuse). */
-    public static function paramsHash(array $params): string
+    /**
+     * Stable hash for verdict reuse. Covers the L1 params AND the static
+     * baseline and timeframe they were judged against — editing the bot's
+     * static config or TF invalidates a stored verdict (F5).
+     */
+    public static function paramsHash(array $params, array $static = [], string $tf = ''): string
     {
         $keys = ['dca_drop_pct', 'max_dca_steps', 'tp_pct', 'trail_pct'];
         $parts = [];
         foreach ($keys as $k) {
             $parts[] = $k . ':' . (string)($params[$k] ?? '-');
         }
+        foreach ($keys as $k) {
+            $parts[] = 's_' . $k . ':' . (string)($static[$k] ?? '-');
+        }
+        $parts[] = 'tf:' . $tf;
         return substr(sha1(implode('|', $parts)), 0, 12);
     }
 }

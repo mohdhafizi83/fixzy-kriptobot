@@ -162,11 +162,15 @@ class AdvisorParamsTest extends TestCase
         $this->assertFalse($bad['approved']);
     }
 
-    public function testEvaluateHandlesDegenerateInput(): void
+    public function testEvaluateFailsClosedOnDegenerateInput(): void
     {
-        $r = AdvisorBacktestGate::evaluate([], ['tp_pct' => 2], ['tp_pct' => 2]);
-        $this->assertTrue($r['approved']); // both zero => not worse
+        // F3 contract: no evidence => NO approval, ever.
+        $r = AdvisorBacktestGate::evaluate([], ['tp_pct' => 2, 'dca_drop_pct' => 2], ['tp_pct' => 2, 'dca_drop_pct' => 2]);
+        $this->assertFalse($r['approved']);
         $r2 = AdvisorBacktestGate::replay($this->candles([0, 0, 0]), ['dca_drop_pct' => 2, 'tp_pct' => 2]);
         $this->assertSame(0.0, $r2['pnl_pct']);
+        // degenerate params (tp<=0) on a short window must not auto-approve
+        $r3 = AdvisorBacktestGate::evaluate($this->candles([1, 2, 3, 4, 5, 6]), ['dca_drop_pct' => 2, 'tp_pct' => 0], ['dca_drop_pct' => 2, 'tp_pct' => 2]);
+        $this->assertFalse($r3['approved']);
     }
 }

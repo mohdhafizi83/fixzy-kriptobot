@@ -62,15 +62,31 @@ $decisions = [];
 $actions = [];
 $outcomes = [];
 $pnl7d = 0.0;
+$pnl7dTrades = 0;
+// Realized USDT from cost basis: profit = sell_value * p/(100+p).
+// PARTIAL_SELL rows are skipped: their pnl_percent is the TARGET threshold
+// and the closing TAKE_PROFIT re-logs the blended pnl (double count).
+$realizedUsdt = static function (array $ad): ?float {
+    if (($ad['sell_type'] ?? '') === 'PARTIAL_SELL') {
+        return null;
+    }
+    $sv = (float)($ad['usdt_value'] ?? 0);
+    $pc = $ad['pnl_percent'] ?? null;
+    if ($sv <= 0 || !is_numeric($pc) || (float)$pc <= -100) {
+        return null;
+    }
+    return $sv * (float)$pc / (100 + (float)$pc);
+};
 if ($selected !== null) {
     $pnl7dRow = $db->fetchAllAssociative(
         "SELECT audit_data FROM trade_logs WHERE bot_id = ? AND created_at >= ? ORDER BY id ASC",
         [$selectedId, date('Y-m-d H:i:s', time() - 7 * 86400)]
     );
     foreach ($pnl7dRow as $r) {
-        $ad = json_decode((string)$r['audit_data'], true) ?: [];
-        if (isset($ad['pnl_percent'])) {
-            $pnl7d += (float)$ad['pnl_percent'];
+        $gain = $realizedUsdt(json_decode((string)$r['audit_data'], true) ?: []);
+        if ($gain !== null) {
+            $pnl7d += $gain;
+            $pnl7dTrades++;
         }
     }
 }
@@ -120,9 +136,9 @@ foreach ($outcomes as $o) {
     $t = strtotime((string)$o['created_at']);
     foreach ($buckets as $id => &$bkt) {
         if ($t >= $bkt['start'] && $t < $bkt['end']) {
-            $ad = json_decode((string)$o['audit_data'], true) ?: [];
-            if (isset($ad['pnl_percent'])) {
-                $bkt['pnl'] += (float)$ad['pnl_percent'];
+            $gain = $realizedUsdt(json_decode((string)$o['audit_data'], true) ?: []);
+            if ($gain !== null) {
+                $bkt['pnl'] += $gain;
             }
             break;
         }
@@ -194,7 +210,7 @@ $aiConfigured = $aiCfg['api_key'] !== '';
                     <?php else: ?>
                         No cached L1 decision yet for this bot.
                     <?php endif; ?>
-                    · 7-day realized: <b style="color: <?= $pnl7d >= 0 ? '#047857' : '#b91c1c' ?>"><?= $pnl7d >= 0 ? '+' : '' ?><?= number_format($pnl7d, 2) ?>%</b>
+                    · 7-day realized: <b style="color: <?= $pnl7d >= 0 ? '#047857' : '#b91c1c' ?>"><?= $pnl7d >= 0 ? '+' : '-$' ?>$<?= number_format(abs($pnl7d), 2) ?></b> <span class="muted">(<?= $pnl7dTrades ?> closed trades)</span>
                 </span>
             <?php endif; ?>
         </div>
@@ -243,7 +259,7 @@ $aiConfigured = $aiCfg['api_key'] !== '';
                     </td>
                     <td>
                         <?php if (abs($bkt['pnl']) < 0.0001): ?><span class="muted">—</span>
-                        <?php else: ?><b style="color: <?= $bkt['pnl'] >= 0 ? '#047857' : '#b91c1c' ?>"><?= $bkt['pnl'] >= 0 ? '+' : '' ?><?= number_format($bkt['pnl'], 2) ?>%</b><?php endif; ?>
+                        <?php else: ?><b style="color: <?= $bkt['pnl'] >= 0 ? '#047857' : '#b91c1c' ?>"><?= $bkt['pnl'] >= 0 ? '+' : '' ?>$<?= number_format($bkt['pnl'], 2) ?></b><?php endif; ?>
                     </td>
                 </tr>
                 <?php endforeach; ?>

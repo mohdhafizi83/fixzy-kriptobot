@@ -17,6 +17,10 @@ class AdvisorBacktestGate
 {
     public const EPSILON_PCT = 0.1;   // tolerate tiny noise between param sets
     public const DD_FACTOR   = 1.5;   // new max drawdown may not exceed static x1.5
+    public const MIN_CANDLES = 6;     // below this the 30h window is not evidence
+    // NOTE: DD floor is an ABSOLUTE 0.5pp — a static set with 0 drawdown can
+    // still approve a new set up to 0.49pp DD (deliberate noise tolerance).
+    // NOTE: replay models dca_drop/max_steps/tp only; trail_pct is not covered.
 
     /**
      * @param list<array<int, float>> $candles decision-TF OHLCV, oldest first
@@ -26,6 +30,19 @@ class AdvisorBacktestGate
      */
     public static function evaluate(array $candles, array $new, array $static): array
     {
+        // Fail CLOSED: a verdict needs real evidence. Empty/short windows or
+        // degenerate param sets (drop/tp <= 0) must never auto-approve.
+        $valid = static function (array $p): bool {
+            return (float)($p['dca_drop_pct'] ?? 0) > 0 && (float)($p['tp_pct'] ?? 0) > 0;
+        };
+        if (count($candles) < self::MIN_CANDLES || !$valid($new) || !$valid($static)) {
+            return [
+                'approved' => false,
+                'new_pnl_pct' => 0.0, 'static_pnl_pct' => 0.0,
+                'new_max_dd_pct' => 0.0, 'static_max_dd_pct' => 0.0,
+                'reason' => 'insufficient data or degenerate params',
+            ];
+        }
         $newRes = self::replay($candles, $new);
         $staticRes = self::replay($candles, $static);
 
