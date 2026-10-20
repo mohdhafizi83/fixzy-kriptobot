@@ -2,6 +2,8 @@
 
 namespace Fixzy\Kriptobot\Trading;
 
+use Fixzy\Kriptobot\Intelligence\AiCopilot\L1Validator;
+
 /**
  * Advisor-mode parameter injection (Phase 3).
  *
@@ -70,9 +72,18 @@ class AdvisorParams
             if (!array_key_exists($l1Key, $params)) {
                 continue;
             }
+            if (!is_numeric($params[$l1Key])) {
+                return $reject("param {$l1Key} not numeric");
+            }
             $value = $l1Key === 'max_dca_steps' ? (int)$params[$l1Key] : (float)$params[$l1Key];
             if (!is_finite($value)) {
                 return $reject("param {$l1Key} not finite");
+            }
+            // The cache is untrusted input (direct DB writes, other writers):
+            // re-check ranges here, never rely on L1Validator having run.
+            [$lo, $hi] = L1Validator::PARAM_RANGES[$l1Key];
+            if ($value < $lo || $value > $hi) {
+                return $reject("param {$l1Key}={$value} outside safe range {$lo}-{$hi}");
             }
             $current = is_array($config[$path[0]] ?? null) ? ($config[$path[0]][$path[1]] ?? null) : null;
             if ($current !== $value) {

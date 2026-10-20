@@ -71,6 +71,23 @@ class AdvisorParamsTest extends TestCase
         }
     }
 
+    public function testTamperedCacheValuesRejectedByRangeCheck(): void
+    {
+        // apply() must not trust the cache: every value re-range-checked here.
+        foreach ([
+            ['tp_pct', 1e9], ['tp_pct', 0.0], ['tp_pct', -3.0],
+            ['dca_drop_pct', 0.0001], ['dca_drop_pct', 999.0],
+            ['max_dca_steps', 9999], ['max_dca_steps', -1],
+            ['trail_pct', 1e6],
+        ] as [$key, $val]) {
+            // single-key cache: missing keys are skipped, present ones checked
+            $r2 = AdvisorParams::apply($this->config(), $this->cache(['params' => [$key => $val]]), 'advisor', 3600, time());
+            $this->assertFalse($r2['applied'], "$key=$val must be rejected by range check");
+        }
+        $str = AdvisorParams::apply($this->config(), $this->cache(['params' => ['tp_pct' => 'abc']]), 'advisor', 3600, time());
+        $this->assertFalse($str['applied'], 'non-numeric must be rejected');
+    }
+
     public function testActiveModeAlsoInjects(): void
     {
         $r = AdvisorParams::apply($this->config(), $this->cache(), 'active', 3600, time());

@@ -25,6 +25,11 @@ $userId = (int)$_SESSION['user_id'];
 $db = Database::getConnection();
 $esc = static fn($s) => htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8');
 
+// Effective-mode context: the daemon holds AI OFF unless the agent switch and
+// the AI feature are both on — mirror that so the page cannot mislead.
+$agentOn = (bool)($db->fetchOne('SELECT agent_enabled FROM agent_settings WHERE user_id = ?', [$userId]) ?: 0);
+$aiFeatureOn = ($db->fetchOne("SELECT status FROM feature_status WHERE feature_key = 'ai'") ?: 'disabled') === 'enabled';
+
 $bots = $db->fetchAllAssociative(
     'SELECT id, coin_pair, runtime_state, configuration FROM bots WHERE user_id = ? ORDER BY id',
     [$userId]
@@ -179,7 +184,9 @@ $aiConfigured = $aiCfg['api_key'] !== '';
                         (<?= $esc($c['tf']) ?> candle <?= date('Y-m-d H:i', intdiv((int)$c['candle_time'], 1000)) ?>,
                         age <?= max(0, time() - (int)$c['created_at']) ?>s,
                         <?= !empty($c['meets_confidence']) ? 'confidence OK' : 'BELOW confidence' ?>,
-                        <?php if ($selected['mode'] === 'advisor' || $selected['mode'] === 'active'): ?>
+                        <?php if (!$agentOn || !$aiFeatureOn): ?>
+                            HELD OFF by daemon (agent switch or AI feature is off)
+                        <?php elseif ($selected['mode'] === 'advisor' || $selected['mode'] === 'active'): ?>
                             backtest gate: <?= !empty($c['params_approved']) ? 'PASSED — params live' : 'not passed — static params' ?>
                         <?php else: ?>
                             shadow (dictation only)

@@ -254,26 +254,29 @@ $runOnce = static function () use ($onlyBot, $candlesPerTf): void {
                 // confidence gate: below threshold keeps the PREVIOUS params (brief §4)
                 $params = $meets ? $decision['params'] : ($cache['params'] ?? $decision['params']);
 
-                // Phase 3 backtest gate (advisor/active only; shadow dictates, never applies).
-                $paramsApproved = true;
+                // Phase 3 backtest gate: evaluated for EVERY mode (cheap,
+                // deterministic) so a later shadow->advisor flip can never
+                // ride a cache that has no real verdict.
+                $paramsApproved = false;
                 $gateDetail = null;
                 $paramsHash = AdvisorParams::paramsHash($params);
-                if ($mode !== 'shadow') {
-                    if (!$meets) {
-                        $paramsApproved = (bool)($cache['params_approved'] ?? false);
-                        $gateDetail = $cache['gate'] ?? null;
-                    } elseif (($cache['params_hash'] ?? null) === $paramsHash && isset($cache['params_approved'])) {
-                        $paramsApproved = (bool)$cache['params_approved']; // same params: reuse verdict
-                        $gateDetail = $cache['gate'] ?? null;
-                    } else {
-                        $needed = max(6, (int)ceil(30 * 60 / DataPackBuilder::tfMinutes($tf)));
-                        $gateDetail = AdvisorBacktestGate::evaluate(
-                            array_slice($tfCandles[$tf] ?? [], -$needed),
-                            $params,
-                            AdvisorParams::staticParams(json_decode((string)$botData['configuration'], true) ?: [])
-                        );
-                        $paramsApproved = (bool)$gateDetail['approved'];
-                    }
+                if (!$meets) {
+                    // previous params kept: their verdict stands only if it
+                    // was a real one (gate detail present).
+                    $paramsApproved = isset($cache['gate']) && !empty($cache['params_approved']);
+                    $gateDetail = is_array($cache['gate'] ?? null) ? $cache['gate'] : null;
+                } elseif (isset($cache['gate'], $cache['params_approved'])
+                    && ($cache['params_hash'] ?? null) === $paramsHash) {
+                    $paramsApproved = (bool)$cache['params_approved']; // same params: reuse real verdict
+                    $gateDetail = is_array($cache['gate']) ? $cache['gate'] : null;
+                } else {
+                    $needed = max(6, (int)ceil(30 * 60 / DataPackBuilder::tfMinutes($tf)));
+                    $gateDetail = AdvisorBacktestGate::evaluate(
+                        array_slice($tfCandles[$tf] ?? [], -$needed),
+                        $params,
+                        AdvisorParams::staticParams(json_decode((string)$botData['configuration'], true) ?: [])
+                    );
+                    $paramsApproved = (bool)$gateDetail['approved'];
                 }
                 $state['ai_copilot_cache'] = [
                     'decision' => $decision,
