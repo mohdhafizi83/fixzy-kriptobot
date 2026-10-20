@@ -105,6 +105,23 @@ if (!function_exists('runKriptobotMigration')) {
                 updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
             )"
         );
+        // --- agent_settings: the daemon reads this every tick; an upgraded DB
+        //     that predates the agent feature must not halt trading. ---
+        $conn->executeStatement(
+            "CREATE TABLE IF NOT EXISTS agent_settings (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL UNIQUE,
+                agent_enabled INTEGER DEFAULT 0,
+                autonomy_mode TEXT DEFAULT 'approval_required',
+                max_capital_per_bot REAL DEFAULT 1000.0,
+                max_total_capital REAL DEFAULT 10000.0,
+                allowed_actions TEXT DEFAULT '[\"analyze_market\",\"view_data\",\"run_backtest\"]',
+                telegram_notifications INTEGER DEFAULT 1,
+                language_preference TEXT DEFAULT 'auto',
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+            )"
+        );
         if (!$quiet) {
             echo "  - app_settings ready\n";
             echo "Migration complete.\n";

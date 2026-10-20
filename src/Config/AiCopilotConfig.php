@@ -57,12 +57,17 @@ class AiCopilotConfig
     /**
      * Read the ai_copilot section out of a full bot configuration array.
      * Missing / malformed section always resolves to safe defaults (OFF).
+     * Accepts mixed on purpose: bots.configuration may decode to null or a
+     * scalar on corrupt rows, and a TypeError here would kill the daemon.
      *
-     * @param array<string, mixed> $botConfig
+     * @param mixed $botConfig
      * @return array<string, mixed>
      */
-    public static function resolve(array $botConfig): array
+    public static function resolve(mixed $botConfig): array
     {
+        if (!is_array($botConfig)) {
+            return self::defaults();
+        }
         return self::normalize($botConfig['ai_copilot'] ?? null);
     }
 
@@ -79,12 +84,20 @@ class AiCopilotConfig
         $d = self::defaults();
 
         $enabled = !empty($raw['enabled']);
-        $trust = in_array((string)($raw['trust_level'] ?? 'off'), self::TRUST_LEVELS, true)
-            ? (string)$raw['trust_level']
+        // Cast once: an explicit null must NOT become '' (in_array sees the
+        // 'off' fallback but the true-branch would otherwise return '').
+        $trustRaw = $raw['trust_level'] ?? 'off';
+        $trust = is_string($trustRaw) && in_array($trustRaw, self::TRUST_LEVELS, true)
+            ? $trustRaw
             : 'off';
         // The switch is the master: disabled always means "off".
         if (!$enabled) {
             $trust = 'off';
+        }
+        // Mirror invariant: trust "off" can never stay "enabled" (covers
+        // garbage input like {enabled:true, trust_level:'garbage'}).
+        if ($trust === 'off') {
+            $enabled = false;
         }
 
         $tf = in_array((string)($raw['decision_timeframe'] ?? ''), self::DECISION_TIMEFRAMES, true)
@@ -125,8 +138,12 @@ class AiCopilotConfig
         $errors = [];
         $d = self::defaults();
 
-        if (isset($raw['enabled']) && !is_bool($raw['enabled']) && !is_numeric($raw['enabled'])) {
-            $errors[] = 'ai_copilot.enabled must be a boolean.';
+        if (array_key_exists('enabled', $raw) && $raw['enabled'] !== null) {
+            $v = $raw['enabled'];
+            $boolish = is_bool($v) || $v === 0 || $v === 1 || $v === '0' || $v === '1';
+            if (!$boolish) {
+                $errors[] = 'ai_copilot.enabled must be a boolean.';
+            }
         }
 
         $trust = $raw['trust_level'] ?? 'off';

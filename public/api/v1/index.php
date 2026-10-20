@@ -21,6 +21,13 @@ declare(strict_types=1);
 
 require_once dirname(__DIR__, 3) . '/src/bootstrap.php';
 
+// Never leak stack traces through the API on non-debug hosts (matches the
+// other public entry points; a bootstrap-time fatal must not print traces).
+if (!\Fixzy\Kriptobot\Config\Config::isDebug()) {
+    ini_set('display_errors', '0');
+    ini_set('log_errors', '1');
+}
+
 use Fixzy\Kriptobot\Config\Config;
 use Fixzy\Kriptobot\Http\ApiException;
 use Fixzy\Kriptobot\Http\ApiResponse;

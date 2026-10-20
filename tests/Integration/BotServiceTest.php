@@ -250,4 +250,37 @@ class BotServiceTest extends TestCase
         $bot = $this->service->get(1, $botId);
         $this->assertSame('off', $bot['configuration']['ai_copilot']['trust_level']);
     }
+
+    /**
+     * A corrupt ai_copilot section stored by a non-save() writer must not
+     * lock the user out: unrelated saves still work and the stored section
+     * is normalized to safe values.
+     * @return void
+     */
+    public function testCorruptStoredAiSectionDoesNotLockOutSaves(): void
+    {
+        $res = $this->service->save(1, null, [
+            'is_enabled' => true,
+            'general' => ['name' => 'Corrupt', 'custom_pairs' => 'BTC/USDT', 'capital' => 10],
+        ]);
+        $botId = $res['bot_id'];
+        // Simulate another writer storing garbage directly (bypasses save()).
+        $this->db->update('bots', [
+            'configuration' => json_encode([
+                'general' => ['name' => 'Corrupt'],
+                'ai_copilot' => ['enabled' => true, 'trust_level' => 'garbage'],
+            ]),
+        ], ['id' => $botId]);
+
+        // A normal save that never touches ai_copilot must still succeed.
+        $this->service->save(1, $botId, [
+            'is_enabled' => true,
+            'general' => ['name' => 'Renamed Anyway', 'custom_pairs' => 'BTC/USDT', 'capital' => 10],
+        ]);
+        $bot = $this->service->get(1, $botId);
+        $this->assertSame('Renamed Anyway', $bot['configuration']['general']['name']);
+        // Garbage section normalized to safe off-state.
+        $this->assertSame('off', $bot['configuration']['ai_copilot']['trust_level']);
+        $this->assertFalse($bot['configuration']['ai_copilot']['enabled']);
+    }
 }

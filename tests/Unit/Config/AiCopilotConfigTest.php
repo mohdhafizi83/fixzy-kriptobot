@@ -36,6 +36,38 @@ class AiCopilotConfigTest extends TestCase
         }
     }
 
+    public function testResolveToleratesNonArrayBotConfig(): void
+    {
+        // Corrupt bots.configuration rows decode to null/scalars; resolve()
+        // must never raise a TypeError that could kill the daemon loop.
+        foreach ([null, 'garbage', 42, true, [1, 2, 3]] as $bad) {
+            $resolved = AiCopilotConfig::resolve($bad);
+            $this->assertSame('off', $resolved['trust_level']);
+        }
+    }
+
+    public function testNormalizeNeverReturnsEmptyTrustLevel(): void
+    {
+        // Explicit null trust_level used to cast to '' (undefined mode).
+        $normalized = AiCopilotConfig::normalize(['enabled' => true, 'trust_level' => null]);
+        $this->assertSame('off', $normalized['trust_level']);
+        $normalized = AiCopilotConfig::normalize(['enabled' => true, 'trust_level' => ['x']]);
+        $this->assertSame('off', $normalized['trust_level']);
+    }
+
+    public function testValidateRejectsNonBooleanEnabled(): void
+    {
+        foreach ([INF, -1, 2, 'yes', [1]] as $bad) {
+            $this->assertNotSame(
+                [],
+                AiCopilotConfig::validate(['enabled' => $bad, 'trust_level' => 'shadow']),
+                'enabled=' . var_export($bad, true) . ' must be rejected'
+            );
+        }
+        $this->assertSame([], AiCopilotConfig::validate(['enabled' => true, 'trust_level' => 'shadow']));
+        $this->assertSame([], AiCopilotConfig::validate(['enabled' => '1', 'trust_level' => 'shadow']));
+    }
+
     public function testDisabledSwitchForcesTrustOff(): void
     {
         $normalized = AiCopilotConfig::normalize([

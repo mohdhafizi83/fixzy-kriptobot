@@ -113,19 +113,25 @@ class BotService
         // sections (base_order/dca/risk_management) that the client omitted.
         $configToSave = $payload;
         unset($configToSave['is_enabled'], $configToSave['csrf_token'], $configToSave['runtime_state']);
-        if ($botId) {
-            $existing = $this->get($userId, $botId);
-            $configToSave = $this->deepMerge($existing['configuration'] ?? [], $configToSave);
-        }
 
-        // AI Copilot section is optional; when present it must pass validation
-        // and is normalized to safe values. Configs without it are untouched
-        // (backward compatibility: old bots keep behaving exactly as before).
+        // AI Copilot: validate the CALLER's payload BEFORE merging, so a
+        // corrupt section stored by another writer can never lock the user
+        // out of saving unrelated settings. After merging, normalize
+        // defensively (never throws) so the stored section is always safe.
         if (array_key_exists('ai_copilot', $configToSave)) {
             $errors = \Fixzy\Kriptobot\Config\AiCopilotConfig::validate($configToSave['ai_copilot']);
             if ($errors !== []) {
                 throw new ConfigValidationException(implode(' ', $errors));
             }
+            $configToSave['ai_copilot'] = \Fixzy\Kriptobot\Config\AiCopilotConfig::normalize($configToSave['ai_copilot']);
+        }
+
+        if ($botId) {
+            $existing = $this->get($userId, $botId);
+            $configToSave = $this->deepMerge($existing['configuration'] ?? [], $configToSave);
+        }
+
+        if (array_key_exists('ai_copilot', $configToSave)) {
             $configToSave['ai_copilot'] = \Fixzy\Kriptobot\Config\AiCopilotConfig::normalize($configToSave['ai_copilot']);
         }
 
