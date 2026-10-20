@@ -30,7 +30,13 @@ class RiskGuardTest extends TestCase
         $this->db->executeStatement("CREATE TABLE bots (
             id INTEGER PRIMARY KEY, user_id INTEGER, coin_pair TEXT,
             allocated_capital REAL DEFAULT 0, status INTEGER DEFAULT 1,
+            parent_id INTEGER DEFAULT NULL,
             runtime_state TEXT DEFAULT '{}', configuration TEXT DEFAULT '{}'
+        )");
+        $this->db->executeStatement("CREATE TABLE trade_logs (
+            id INTEGER PRIMARY KEY, bot_id INTEGER, action TEXT,
+            price REAL, amount REAL, audit_data TEXT,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP
         )");
         $this->db->executeStatement("CREATE TABLE audit_logs (
             id INTEGER PRIMARY KEY, bot_id INTEGER, user_id INTEGER,
@@ -48,11 +54,12 @@ class RiskGuardTest extends TestCase
      * Seed one bot row.
      * @return void
      */
-    private function seedBot(int $id, string $pair, float $capital, array $state = []): void
+    private function seedBot(int $id, string $pair, float $capital, array $state = [], ?int $parentId = null): void
     {
         $this->db->insert('bots', [
             'id' => $id, 'user_id' => 1, 'coin_pair' => $pair,
             'allocated_capital' => $capital, 'status' => 1,
+            'parent_id' => $parentId,
             'runtime_state' => json_encode($state),
         ]);
     }
@@ -98,6 +105,79 @@ class RiskGuardTest extends TestCase
             'context_data' => json_encode(['usdt_value' => 10.0, 'pnl_percent' => -100.0]),
         ]);
         $this->assertSame(0.0, $this->guard->dailyRealizedNetUsdt(1, (int)strtotime('today')));
+    }
+
+    /**
+     * C1 regression: production sells go through AuditLogger::logSell which
+     * writes event_type='SELL' + context_data.sell_type. The kill switch must
+     * count those rows — a query matching only the concrete types sees nothing.
+     */
+    public function testDailyRealizedNetCountsRealLogSellRows(): void
+    {
+        $logger = new \Fixzy\Kriptobot\Database\AuditLogger($this->db);
+        $logger->logSell(1, 1, 'CUT_LOSS', [
+            'symbol' => 'BTC/USDT', 'sell_price' => 90.0, 'coin_sold' => 1.0,
+            'pnl_percent' => -10.0, 'usdt_value' => 90.0, 'status' => 'SUCCESS',
+        ]);
+        $logger->logSell(1, 1, 'TAKE_PROFIT', [
+            'symbol' => 'ETH/USDT', 'sell_price' => 110.0, 'coin_sold' => 1.0,
+            'pnl_percent' => 10.0, 'usdt_value' => 110.0, 'status' => 'SUCCESS',
+        ]);
+        // -10 + 10 = 0; make the loss dominant to assert a real number.
+        $logger->logSell(1, 1, 'CUT_LOSS', [
+            'symbol' => 'XRP/USDT', 'pnl_percent' => -20.0, 'usdt_value' => 80.0, 'status' => 'SUCCESS',
+        ]);
+        $net = $this->guard->dailyRealizedNetUsdt(1, (int)strtotime('today'));
+        $this->assertSame(-20.0, $net); // -10 + 10 + (80*-20/80 = -20)
+    }
+
+    public function testSellRowsRequireKnownSellTypeAndSuccessStatus(): void
+    {
+        $this->db->insert('audit_logs', [
+            'bot_id' => 1, 'user_id' => 1, 'event_type' => 'SELL',
+            'context_data' => json_encode(['usdt_value' => 90.0, 'pnl_percent' => -10.0]), // no sell_type
+        ]);
+        $this->db->insert('audit_logs', [
+            'bot_id' => 1, 'user_id' => 1, 'event_type' => 'SELL',
+            'context_data' => json_encode(['sell_type' => 'CUT_LOSS', 'usdt_value' => 90.0, 'pnl_percent' => -10.0, 'status' => 'ERROR']),
+        ]);
+        $this->db->insert('audit_logs', [
+            'bot_id' => 1, 'user_id' => 1, 'event_type' => 'SELL',
+            'context_data' => json_encode(['sell_type' => 'SOMETHING_ELSE', 'usdt_value' => 90.0, 'pnl_percent' => -10.0]),
+        ]);
+        $this->assertSame(0.0, $this->guard->dailyRealizedNetUsdt(1, (int)strtotime('today')));
+    }
+
+    public function testCapitalBaseExcludesRecoveryClones(): void
+    {
+        $this->seedBot(1, 'BTC/USDT', 300.0);
+        $this->seedBot(2, 'BTC/USDT', 300.0, ['is_recovery_bot' => 1], 1); // clone of bot 1
+        $this->assertSame(300.0, $this->guard->capitalBaseUsdt(1, []));
+    }
+
+    public function testSettingClampsOutOfRangeOverrides(): void
+    {
+        $this->db->insert('app_settings', ['setting_key' => 'risk_guard.daily_loss_pct', 'value' => '1e400', 'encrypted' => 0, 'updated_at' => '']);
+        $this->assertSame(2.0, $this->guard->setting('daily_loss_pct')); // INF → default
+        $this->db->update('app_settings', ['value' => '-5'], ['setting_key' => 'risk_guard.daily_loss_pct']);
+        $this->assertSame(0.1, $this->guard->setting('daily_loss_pct')); // clamped to floor
+        $this->db->update('app_settings', ['value' => '9999'], ['setting_key' => 'risk_guard.daily_loss_pct']);
+        $this->assertSame(50.0, $this->guard->setting('daily_loss_pct')); // clamped to ceiling
+    }
+
+    public function testCutLossCooldownAcceptsCorruptRuntimeState(): void
+    {
+        $this->assertSame(0, $this->guard->cutLossCooldownRemainingSec(null));
+        $this->assertSame(0, $this->guard->cutLossCooldownRemainingSec('garbage'));
+        $this->assertSame(0, $this->guard->cutLossCooldownRemainingSec(['cut_loss_at' => 'not-a-number']));
+    }
+
+    public function testSanityRejectsNonFiniteOrderPrice(): void
+    {
+        $nan = $this->guard->sanityCheckOrder(NAN, 100.0, 10.0);
+        $this->assertFalse($nan['ok']);
+        $inf = $this->guard->sanityCheckOrder(INF, 100.0, 10.0);
+        $this->assertFalse($inf['ok']);
     }
 
     public function testCapitalBaseSumsEnabledBotsWithFallback(): void

@@ -361,8 +361,10 @@ while (true) {
             $botId = $botData['id'];
             $userId = $botData['user_id']; 
             $symbol = $botData['coin_pair'];
-            $state = $botData['runtime_state'];
-            $config = $botData['configuration'];
+            // Corrupt JSON rows decode to null (BotRepository has no fallback);
+            // coerce so no new consumer can TypeError the tick.
+            $state = $botData['runtime_state'] ?: [];
+            $config = $botData['configuration'] ?: [];
             
             $userHasRecovery = isset($recoveryUsers[$userId]);
             $isRecoveryBot = !empty($state['is_recovery_bot']);
@@ -638,7 +640,38 @@ while (true) {
                             }
                             
                             // 4. Execute a Market Buy for the remainder
+                            // RISK GUARD: re-check before completing the base
+                            // entry at market — kill switch / exposure may have
+                            // changed between limit placement and fallback.
                             if ($remainingUsdt > 1.0) {
+                                $fbGate = $riskGuard->checkNewEntry(
+                                    $userId,
+                                    (string)$symbol,
+                                    (float)$remainingUsdt,
+                                    $agentSettingsCache[$userId] ?? [],
+                                    $priceOf,
+                                    $hasPriceHub
+                                );
+                                if (!$fbGate['ok']) {
+                                    echo "      🛡️ [RISK GUARD] Fallback market buy BLOCKED: {$fbGate['reason']}\n";
+                                    if ((float)($state['current_holdings'] ?? 0) > 0) {
+                                        // Partially filled: keep the position, just stop buying.
+                                        $state['status'] = 'ACTIVE';
+                                        $state['base_order_price'] = $state['average_entry_price'];
+                                        $state['base_order_volume_usdt'] = (float)$state['average_entry_price'] * (float)$state['current_holdings'];
+                                        $state['trade_start_timestamp'] = time();
+                                    } else {
+                                        $state['status'] = 'IDLE';
+                                    }
+                                    unset($state['limit_order_id']);
+                                    $repo->updateRuntimeState($botId, $state);
+                                    $auditLogger->log($botId, $userId, 'RISK_GUARD_BLOCK', "Fallback market buy blocked for {$symbol}: {$fbGate['reason']}", [
+                                        'symbol'      => $symbol,
+                                        'order_usdt'  => $remainingUsdt,
+                                        'reason'      => $fbGate['reason'],
+                                    ]);
+                                    continue;
+                                }
                                 echo "      🚀 Fallback: Executing Market Buy for remaining USDT " . round($remainingUsdt, 2) . "...\n";
                                 $marketOrder = $orderManager->executeMarketBuy($symbol, $remainingUsdt);
                                 
@@ -1827,12 +1860,20 @@ if (($state['current_holdings'] ?? 0) <= 0) {
                     if (!$entryGate['ok'] || !$sanityGate['ok']) {
                         $blockReason = $entryGate['ok'] ? $sanityGate['reason'] : $entryGate['reason'];
                         echo "      🛡️ [RISK GUARD] Entry BLOCKED for {$scanSymbol}: {$blockReason}\n";
-                        $auditLogger->log($botId, $userId, 'RISK_GUARD_BLOCK', "Entry blocked for {$scanSymbol}: {$blockReason}", [
-                            'symbol'     => $scanSymbol,
-                            'order_usdt' => $baseOrderAmount,
-                            'price'      => $currentPrice,
-                            'reason'     => $blockReason,
-                        ]);
+                        // Rate-limit the audit row (same bot+reason max once per
+                        // 15 min) — a 24h kill window would otherwise write ~1440 rows/day.
+                        $blockAuditKey = 'kriptobot_rg_block_logged_' . $botId . '_' . md5($scanSymbol . '|' . $blockReason);
+                        if (!function_exists('apcu_fetch') || apcu_fetch($blockAuditKey) === false) {
+                            if (function_exists('apcu_store')) {
+                                apcu_store($blockAuditKey, 1, 900);
+                            }
+                            $auditLogger->log($botId, $userId, 'RISK_GUARD_BLOCK', "Entry blocked for {$scanSymbol}: {$blockReason}", [
+                                'symbol'     => $scanSymbol,
+                                'order_usdt' => $baseOrderAmount,
+                                'price'      => $currentPrice,
+                                'reason'     => $blockReason,
+                            ]);
+                        }
                         $repo->updateRuntimeState($botId, $state);
                         continue;
                     }

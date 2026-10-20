@@ -25,7 +25,11 @@ use Doctrine\DBAL\Connection;
  */
 class RiskGuard
 {
-    /** audit_logs event types that realize PnL (all sell paths log one of these). */
+    /**
+     * audit_logs sell event types that realize PnL. AuditLogger::logSell()
+     * writes event_type='SELL' with the concrete type in context_data.sell_type,
+     * so dailyRealizedNetUsdt() accepts both shapes (direct rows and logSell rows).
+     */
     public const SELL_EVENTS = ['TAKE_PROFIT', 'CUT_LOSS', 'CUSTOM_SELL', 'GLOBAL_SELL_OVERRIDE', 'PARTIAL_SELL'];
 
     public const DEFAULTS = [
@@ -35,6 +39,16 @@ class RiskGuard
         'price_deviation_pct'      => 2.0,   // order price must be within x% of mid
         'min_order_usdt'           => 5.0,   // exchange minimum notional floor
         'ai_max_dca_steps_cap'     => 8,     // AI mode: DCA steps must stay finite and capped
+    ];
+
+    /** Defense-in-depth clamps for app_settings overrides (direct DB writes only). */
+    private const RANGES = [
+        'daily_loss_pct'           => [0.1, 50.0],
+        'kill_switch_hours'        => [1.0, 168.0],
+        'cut_loss_cooldown_hours'  => [0.0, 168.0],
+        'price_deviation_pct'      => [0.1, 20.0],
+        'min_order_usdt'           => [1.0, 100000.0],
+        'ai_max_dca_steps_cap'     => [0.0, 8.0],
     ];
 
     private bool $tableReady = false;
@@ -53,13 +67,22 @@ class RiskGuard
     {
         $default = (float)(self::DEFAULTS[$key] ?? 0);
         $raw = $this->appSetting('risk_guard.' . $key);
+        $value = null;
         if ($raw !== '' && is_numeric($raw)) {
-            return (float)$raw;
+            $value = (float)$raw;
+        } elseif (array_key_exists($key, $this->overrides) && is_numeric($this->overrides[$key])) {
+            $value = (float)$this->overrides[$key];
         }
-        if (array_key_exists($key, $this->overrides) && is_numeric($this->overrides[$key])) {
-            return (float)$this->overrides[$key];
+        if ($value === null || !is_finite($value)) {
+            return $default;
         }
-        return $default;
+        // Clamp to a sane range so a bad direct DB write (e.g. '1e400' = INF,
+        // negative floor) can never disable a guard.
+        if (isset(self::RANGES[$key])) {
+            [$lo, $hi] = self::RANGES[$key];
+            $value = max($lo, min($hi, $value));
+        }
+        return $value;
     }
 
     /**
@@ -70,20 +93,35 @@ class RiskGuard
      */
     public function dailyRealizedNetUsdt(int $userId, int $sinceTs): float
     {
-        $placeholders = implode(',', array_fill(0, count(self::SELL_EVENTS), '?'));
+        // AuditLogger::logSell() stores event_type='SELL' and the concrete type
+        // in context_data.sell_type; also accept rows written with the concrete
+        // type directly (tests, future writers).
+        $eventTypes = array_merge(['SELL'], self::SELL_EVENTS);
+        $placeholders = implode(',', array_fill(0, count($eventTypes), '?'));
         // Window uses the SAME clock as AuditLogger (date(), server-local):
         // $sinceTs is formatted with the local clock, so callers should pass
         // strtotime('today') (local midnight). On UTC hosts this is UTC.
         $rows = $this->db->fetchAllAssociative(
-            "SELECT context_data FROM audit_logs
+            "SELECT event_type, context_data FROM audit_logs
              WHERE user_id = ? AND event_type IN ({$placeholders}) AND created_at >= ?",
-            array_merge([$userId], self::SELL_EVENTS, [date('Y-m-d H:i:s', $sinceTs)])
+            array_merge([$userId], $eventTypes, [date('Y-m-d H:i:s', $sinceTs)])
         );
 
         $net = 0.0;
         foreach ($rows as $row) {
             $ctx = json_decode((string)$row['context_data'], true);
             if (!is_array($ctx)) {
+                continue;
+            }
+            // For generic 'SELL' rows the concrete type must be one of ours;
+            // failed sells (status ERROR) must not count.
+            if ($row['event_type'] === 'SELL') {
+                $sellType = (string)($ctx['sell_type'] ?? '');
+                if (!in_array($sellType, self::SELL_EVENTS, true)) {
+                    continue;
+                }
+            }
+            if ((string)($ctx['status'] ?? 'SUCCESS') !== 'SUCCESS') {
                 continue;
             }
             $sellValue = (float)($ctx['usdt_value'] ?? 0);
@@ -107,7 +145,8 @@ class RiskGuard
     public function capitalBaseUsdt(int $userId, array $agentSettings): float
     {
         $sum = (float)$this->db->fetchOne(
-            "SELECT COALESCE(SUM(allocated_capital), 0) FROM bots WHERE user_id = ? AND status = 1",
+            "SELECT COALESCE(SUM(allocated_capital), 0) FROM bots
+             WHERE user_id = ? AND status = 1 AND parent_id IS NULL",
             [$userId]
         );
         if ($sum > 0) {
@@ -175,7 +214,8 @@ class RiskGuard
         $total = 0.0;
         foreach ($rows as $row) {
             $state = json_decode((string)$row['runtime_state'], true);
-            $holdings = is_array($state) ? (float)($state['current_holdings'] ?? 0) : 0.0;
+            $holdingsRaw = is_array($state) ? ($state['current_holdings'] ?? 0) : 0;
+            $holdings = is_numeric($holdingsRaw) ? (float)$holdingsRaw : 0.0; // arrays/objects must not cast to 1.0
             if ($holdings <= 0) {
                 continue;
             }
@@ -248,11 +288,16 @@ class RiskGuard
 
     /**
      * Seconds left of the per-bot cut-loss cooldown (0 = free to trade).
+     * Accepts mixed: a corrupt runtime_state (null/scalar) degrades to "no
+     * cooldown" rather than a TypeError — the daemon tick must never die here.
      *
-     * @param array<string, mixed> $runtimeState
+     * @param mixed $runtimeState
      */
-    public function cutLossCooldownRemainingSec(array $runtimeState): int
+    public function cutLossCooldownRemainingSec(mixed $runtimeState): int
     {
+        if (!is_array($runtimeState)) {
+            return 0;
+        }
         $at = (int)($runtimeState['cut_loss_at'] ?? 0);
         if ($at <= 0) {
             return 0;
@@ -273,8 +318,8 @@ class RiskGuard
         if ($orderUsdt < $this->setting('min_order_usdt')) {
             return ['ok' => false, 'reason' => sprintf('Order size $%.2f below minimum $%.2f', $orderUsdt, $this->setting('min_order_usdt'))];
         }
-        if ($orderPrice <= 0) {
-            return ['ok' => false, 'reason' => 'Order price must be positive'];
+        if ($orderPrice <= 0 || !is_finite($orderPrice)) {
+            return ['ok' => false, 'reason' => 'Order price must be a positive finite number'];
         }
         if ($midPrice !== null && $midPrice > 0) {
             $dev = abs($orderPrice - $midPrice) / $midPrice * 100;

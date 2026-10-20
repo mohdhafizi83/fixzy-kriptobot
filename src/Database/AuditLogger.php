@@ -123,6 +123,10 @@ class AuditLogger
      */
     public function logSell(int $botId, int $userId, string $sellType, array $details): void
     {
+        // Keep the concrete sell type queryable: event_type stays 'SELL' (stable
+        // for existing consumers) and the type lands in context_data.sell_type,
+        // which RiskGuard's realized-PnL query relies on.
+        $details['sell_type'] = $sellType;
         $this->log($botId, $userId, 'SELL', "$sellType for " . ($details['symbol'] ?? '?'), $details);
 
         $this->logTrade($botId, $userId, [
