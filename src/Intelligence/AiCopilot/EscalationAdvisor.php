@@ -89,6 +89,7 @@ final class EscalationAdvisor
                     'temperature' => 0.1,
                     'response_format' => ['type' => 'json_object'],
                 ],
+                'stream' => true, // do not buffer a hostile full body in RAM
             ]);
         } catch (GuzzleException $e) {
             return ['ok' => false, 'stage' => 'llm', 'errors' => ['LLM unreachable: ' . $e->getMessage()]];

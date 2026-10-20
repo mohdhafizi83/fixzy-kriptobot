@@ -128,6 +128,9 @@ class ApprovalManager
         if (!$decision) {
             return ['success' => false, 'error' => 'Decision not found'];
         }
+        if (!in_array($decision['status'] ?? '', ['pending_approval', 'pending_ai'], true)) {
+            return ['success' => false, 'error' => 'Decision is not pending'];
+        }
 
         $this->db->update('agent_decisions', [
             'status'        => 'rejected',
@@ -150,6 +153,9 @@ class ApprovalManager
         $decision = $this->getDecision($decisionId, $userId);
         if (!$decision) {
             return ['success' => false, 'error' => 'Decision not found'];
+        }
+        if (($decision['decision_type'] ?? '') === 'ai_escalation') {
+            return ['success' => false, 'error' => 'Escalation decisions cannot be modified; approve or reject the AI verdict.'];
         }
 
         $this->db->update('agent_decisions', [

@@ -85,7 +85,16 @@ final class EscalationExecutor
                     $action = 'hold';
                     $note = ' (no AI verdict; human approval resumes trading)';
                 } else {
-                    return ['executed' => false, 'action' => '', 'resolved' => false, 'message' => 'verdict missing or invalid'];
+                    // auto_approved with an unparseable verdict (manual DB edit,
+                    // writer bug): route to a human instead of retrying forever.
+                    $conn->executeStatement(
+                        "UPDATE agent_decisions
+                         SET status = 'pending_approval',
+                             justification = COALESCE(justification, '') || ' | verdict corrupt — human decision required'
+                         WHERE id = ? AND status = 'auto_approved'",
+                        [(int)$decision['id']]
+                    );
+                    return ['executed' => false, 'action' => '', 'resolved' => false, 'message' => 'verdict corrupt — routed to human'];
                 }
             } else {
                 $action = $verdict['action'];
@@ -132,14 +141,17 @@ final class EscalationExecutor
             'reask_at'          => $action === 'wait' ? $now + Escalation::REASK_SECONDS : 0,
         ];
 
-        // Targeted write: never clobber a fresh AI-loop cache.
-        $conn->executeStatement(
-            "UPDATE bots SET runtime_state = json_set(
-                 CASE WHEN json_valid(runtime_state) AND json_type(runtime_state) = 'object'
-                      THEN runtime_state ELSE '{}' END,
-                 '$.ai_l3', json(?)) WHERE id = ?",
+        // Targeted write: never clobber a fresh AI-loop cache, and NEVER
+        // wholesale-replace a corrupt runtime_state (that would erase the
+        // position state) — bail out and let an operator fix the row.
+        $written = $conn->executeStatement(
+            "UPDATE bots SET runtime_state = json_set(runtime_state, '$.ai_l3', json(?))
+             WHERE id = ? AND json_valid(runtime_state) AND json_type(runtime_state) = 'object'",
             [(string)json_encode($escState), $botId]
         );
+        if ((int)$written === 0) {
+            return ['executed' => false, 'action' => $action, 'resolved' => false, 'message' => 'runtime_state corrupt; refusing to write'];
+        }
 
         if ($resolved && in_array($status, ['auto_approved', 'approved'], true)) {
             $conn->executeStatement(

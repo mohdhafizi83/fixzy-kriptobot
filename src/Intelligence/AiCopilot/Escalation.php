@@ -41,7 +41,8 @@ final class Escalation
      * Pure trigger detection — no I/O so it is fully unit-testable.
      *
      * @param array{mode:string,state:array,config:array,esc:array,now:int,
-     *              price:float,pnl:float,price_window:?float,cache_age:?int,ttl:int} $ctx
+     *              price:float,pnl:float,price_window:?float,cache_age:?int,ttl:int,
+     *              trade_age?:int|null} $ctx
      * @return array{trigger:string,detail:array,human_only:bool}|null
      */
     public static function detect(array $ctx): ?array
@@ -105,9 +106,13 @@ final class Escalation
         }
 
         // 4) L1 expired: the strategic brain is gone; freeze and ask a human.
+        // Grace: a missing cache on a freshly started position is NOT "LLM
+        // down" — the loop simply has not produced a decision yet.
         $age = $ctx['cache_age'] ?? null;
         $ttl = (int)($ctx['ttl'] ?? 3600);
-        if ($holdings > 0 && ($age === null || (int)$age > $ttl)) {
+        $tradeAgeRaw = $ctx['trade_age'] ?? null;
+        $inGrace = is_numeric($tradeAgeRaw) && (float)$tradeAgeRaw <= $ttl;
+        if ($holdings > 0 && ($age === null ? !$inGrace : (int)$age > $ttl)) {
             return ['trigger' => 'l1_expired', 'human_only' => true, 'detail' => $detailBase + [
                 'cache_age' => $age === null ? null : (int)$age, 'ttl' => $ttl,
             ]];
@@ -121,7 +126,7 @@ final class Escalation
     {
         $price = $conn->fetchOne(
             "SELECT price FROM price_ticks
-             WHERE bot_id = ? AND created_at <= datetime('now', 'localtime', ?)
+             WHERE bot_id = ? AND created_at <= datetime('now', ?)
              ORDER BY id DESC LIMIT 1",
             [$botId, "-{$windowMin} minutes"]
         );

@@ -28,6 +28,7 @@ final class EscalationTest extends TestCase
             'pnl' => 0.0,
             'price_window' => 100.0,
             'cache_age' => 60,
+            'trade_age' => 999999,
             'ttl' => 3600,
         ], $overrides);
     }
@@ -104,6 +105,17 @@ final class EscalationTest extends TestCase
         $this->assertNotNull(Escalation::detect($this->ctx(['state' => $cooldown, 'pnl' => -9.0, 'price_window' => null, 'now' => 999000 + 1801])));
     }
 
+    public function testL1ExpiredGraceForFreshPosition(): void
+    {
+        // Missing cache on a position younger than one TTL window is NOT
+        // "LLM down" — the loop simply has not produced a decision yet.
+        $t = Escalation::detect($this->ctx(['cache_age' => null, 'trade_age' => 600, 'price_window' => null]));
+        $this->assertNull($t);
+        // Older than the window with no cache => genuine expiry.
+        $t2 = Escalation::detect($this->ctx(['cache_age' => null, 'trade_age' => 7200, 'price_window' => null]));
+        $this->assertSame('l1_expired', $t2['trigger']);
+    }
+
     public function testCacheAge(): void
     {
         $this->assertNull(Escalation::cacheAge(null, 1000));
@@ -117,7 +129,7 @@ final class EscalationTest extends TestCase
     {
         $db = DriverManager::getConnection(['driver' => 'pdo_sqlite', 'memory' => true]);
         $db->executeStatement('CREATE TABLE bots (id INTEGER PRIMARY KEY, runtime_state TEXT)');
-        $db->executeStatement('CREATE TABLE agent_decisions (id INTEGER PRIMARY KEY, status TEXT, proposed_config TEXT, market_snapshot TEXT, applied_at TEXT)');
+        $db->executeStatement('CREATE TABLE agent_decisions (id INTEGER PRIMARY KEY, status TEXT, proposed_config TEXT, market_snapshot TEXT, justification TEXT, applied_at TEXT)');
         $db->executeStatement('INSERT INTO bots VALUES (1, ?)', ['{}']);
 
         $mk = function (string $status, ?array $verdict) use ($db): array {
@@ -169,6 +181,12 @@ final class EscalationTest extends TestCase
         // human approve without AI verdict (l1_expired): acknowledgement resumes
         $r = EscalationExecutor::execute($db, $mk('approved', null), 1, $sellOk, 5000);
         $this->assertSame('hold', $r['action']);
+
+        // auto_approved with a corrupt verdict: routed to a human, not retried forever
+        $r = EscalationExecutor::execute($db, $mk('auto_approved', null), 1, $sellOk, 4500);
+        $this->assertFalse($r['executed']);
+        $this->assertStringContainsString('routed to human', $r['message']);
+        $this->assertSame('pending_approval', $db->fetchOne('SELECT status FROM agent_decisions WHERE id = 9'));
 
         // unresolved statuses are no-ops
         $this->assertFalse(EscalationExecutor::execute($db, $mk('pending_ai', null), 1, $sellOk, 5000)['executed']);

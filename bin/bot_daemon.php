@@ -775,6 +775,43 @@ while (true) {
             
 // Route IDLE bots to Situation B
 if (($state['current_holdings'] ?? 0) <= 0) {
+    // H1: a position that closed (TP/trailing/manual) while an escalation was
+    // open must auto-resolve it, or the pause would block every future entry
+    // forever (the verdict block only runs in the holdings branch).
+    if ($aiPaused) {
+        try {
+            $l3FlatId = (int)($aiEsc['decision_id'] ?? 0);
+            if ($l3FlatId > 0) {
+                $conn->executeStatement(
+                    "UPDATE agent_decisions
+                     SET status = 'applied', applied_at = ?,
+                         justification = COALESCE(justification, '') || ' | auto-resolved: position closed while paused'
+                     WHERE id = ? AND status IN ('pending_ai', 'pending_approval', 'approved', 'auto_approved')",
+                    [date('Y-m-d H:i:s'), $l3FlatId]
+                );
+            }
+            $conn->executeStatement(
+                "UPDATE bots SET runtime_state = json_set(
+                     CASE WHEN json_valid(runtime_state) AND json_type(runtime_state) = 'object'
+                          THEN runtime_state ELSE '{}' END,
+                     '$.ai_l3', json(?)) WHERE id = ?",
+                [(string)json_encode([
+                    'paused' => 0, 'action' => 'auto_resolved_flat',
+                    'trigger' => (string)($aiEsc['trigger'] ?? ''),
+                    'decision_id' => $l3FlatId, 'last_resolved_at' => time(),
+                ]), $botId]
+            );
+            $state['ai_l3'] = ['paused' => 0, 'action' => 'auto_resolved_flat', 'last_resolved_at' => time()];
+            $aiEsc = $state['ai_l3'];
+            $aiPaused = false;
+            $auditLogger->log($botId, $userId, 'AI_ESCALATION_AUTO_RESOLVED',
+                'Position closed while the bot was paused; escalation auto-resolved and trading resumed.',
+                ['decision_id' => $l3FlatId]);
+            echo "      ✅ [L3] Bot #{$botId} flat with an open escalation — auto-resolved.\n";
+        } catch (Throwable $l3f) {
+            echo "      ⚠️ [L3] Bot #{$botId} auto-resolve failed: " . $l3f->getMessage() . "\n";
+        }
+    }
     goto SITUATION_B_IDLE;
 }
 
@@ -796,8 +833,9 @@ if (($state['current_holdings'] ?? 0) <= 0) {
                     "INSERT INTO price_ticks (bot_id, price, pnl_percent, holdings) VALUES (?, ?, ?, ?)",
                     [$botId, $currentPrice, round($pnlPercentage, 2), $state['current_holdings'] ?? 0]
                 );
-                // Keep only last 250 ticks  
-                $conn->executeStatement("DELETE FROM price_ticks WHERE id NOT IN (SELECT id FROM price_ticks ORDER BY id DESC LIMIT 250)");
+                // Keep only last 250 ticks PER BOT (global retention made
+                // flash-move windows unreachable once >=3 bots shared the table)
+                $conn->executeStatement("DELETE FROM price_ticks WHERE bot_id = ? AND id NOT IN (SELECT id FROM price_ticks WHERE bot_id = ? ORDER BY id DESC LIMIT 250)", [$botId, $botId]);
                 
                 echo " -> Current PNL: {$state['live_pnl_percent']}% | Price: $$currentPrice | Avg Entry: $$entryPrice\n";
 
@@ -821,9 +859,18 @@ if (($state['current_holdings'] ?? 0) <= 0) {
                                     $conn,
                                     $l3Row,
                                     $botId,
-                                    function (string $l3a) use ($orderManager, $symbol, $state, $currentPrice, $pnlPercentage, $auditLogger, $botId, $userId, $notifier): array {
+                                    function (string $l3a) use ($orderManager, $exchange, $symbol, $state, $currentPrice, $pnlPercentage, $auditLogger, $botId, $userId, $notifier): array {
                                         try {
-                                            $orderManager->executeMarketSell($symbol, (float)$state['current_holdings']);
+                                            // Idempotency: a crash between sell and
+                                            // status write must not double-sell. Sell
+                                            // the REAL free balance, and if there is
+                                            // none, the cut already happened.
+                                            $l3Coin = explode('/', (string)$symbol)[0];
+                                            $l3Free = $exchange->getFreeBalance($l3Coin);
+                                            if ($l3Free <= 0) {
+                                                return ['ok' => true, 'message' => 'already flat (free balance 0)'];
+                                            }
+                                            $orderManager->executeMarketSell($symbol, min((float)$state['current_holdings'], $l3Free));
                                             $notifier->sendTelegramAlert("✂️ <b>L3 CUT EXECUTED</b>\nPair: $symbol\nAll holdings sold by escalation verdict.\nPNL: $pnlPercentage%");
                                             $auditLogger->logSell($botId, $userId, 'AI_ESCALATION_CUT', [
                                                 'symbol'      => $symbol,
@@ -859,6 +906,14 @@ if (($state['current_holdings'] ?? 0) <= 0) {
                                     $aiEsc = $state['ai_l3'];
                                     $aiPaused = !empty($aiEsc['paused']);
                                     if ($l3res['action'] === 'cut') {
+                                        if (!empty($state['dca_limit_order_id'])) {
+                                            try {
+                                                $exchange->getExchange()->cancel_order((string)$state['dca_limit_order_id'], (string)$symbol);
+                                            } catch (Throwable) {
+                                                // orphan order is logged below via state reset anyway
+                                            }
+                                            unset($state['dca_limit_order_id']);
+                                        }
                                         // Position is gone: reset like every other
                                         // full-sell path, then move to next bot.
                                         $state['status'] = 'IDLE';
@@ -887,6 +942,9 @@ if (($state['current_holdings'] ?? 0) <= 0) {
                                 'cache_age'    => \Fixzy\Kriptobot\Intelligence\AiCopilot\Escalation::cacheAge(
                                     is_array($state['ai_copilot_cache'] ?? null) ? $state['ai_copilot_cache'] : null, $l3Now
                                 ),
+                                'trade_age'    => !empty($state['trade_start_timestamp'])
+                                    ? $l3Now - (int)strtotime((string)$state['trade_start_timestamp'])
+                                    : null,
                                 'ttl'          => (int)$aiCopilot['cache_ttl_seconds'],
                             ]);
                             if ($l3Trig !== null) {
@@ -903,6 +961,19 @@ if (($state['current_holdings'] ?? 0) <= 0) {
                                 $aiEsc = $state['ai_l3'];
                                 $aiPaused = true;
                                 $repo->updateRuntimeState($botId, $state);
+                                // H2: a DCA limit resting on the exchange would
+                                // FILL during the pause (exactly the crash dip that
+                                // triggered it) — cancel it now.
+                                if (!empty($state['dca_limit_order_id'])) {
+                                    try {
+                                        $exchange->getExchange()->cancel_order((string)$state['dca_limit_order_id'], (string)$symbol);
+                                        echo "      🛑 [L3] Resting DCA limit {$state['dca_limit_order_id']} canceled (pause).\n";
+                                    } catch (Throwable $l3c) {
+                                        echo "      ⚠️ [L3] could not cancel resting DCA limit: " . $l3c->getMessage() . "\n";
+                                    }
+                                    unset($state['dca_limit_order_id']);
+                                    $repo->updateRuntimeState($botId, $state);
+                                }
                                 $auditLogger->log($botId, $userId, 'AI_ESCALATION_OPENED', sprintf(
                                     'L3 escalation opened (%s): bot paused, %s',
                                     $l3Trig['trigger'],

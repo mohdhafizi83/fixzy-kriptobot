@@ -50,6 +50,101 @@ $args = getopt('', ['once', 'loop::', 'bot::']);
 $loopSec = isset($args['loop']) ? max(15, (int)($args['loop'] ?: 60)) : 0;
 $onlyBot = isset($args['bot']) ? (int)$args['bot'] : null;
 
+/**
+ * Answer queued L3 escalations (status pending_ai). Writes verdicts only —
+ * the daemon executes them. Runs BEFORE the L1 analyzer gate so a removed AI
+ * key can never starve a paused bot; the pass itself routes 'AI unavailable'
+ * and aged-out escalations to a human.
+ */
+function processEscalationPass(): void
+{
+    $conn = Database::getConnection();
+    $auditLogger = new AuditLogger($conn);
+    try {
+        $l3Rows = $conn->fetchAllAssociative(
+            "SELECT d.id, d.user_id, d.bot_id, d.market_snapshot, d.backtest_results, d.created_at, b.coin_pair
+             FROM agent_decisions d JOIN bots b ON b.id = d.bot_id
+             WHERE d.decision_type = 'ai_escalation' AND d.status = 'pending_ai'
+             ORDER BY d.id ASC LIMIT 5"
+        );
+        if ($l3Rows === []) {
+            return;
+        }
+        $l3Advisor = EscalationAdvisor::fromConfig();
+        $l3AgentSvc = new AgentSettingsService($conn);
+        foreach ($l3Rows as $l3) {
+            $snapshot = json_decode((string)$l3['market_snapshot'], true) ?: [];
+            $meta = json_decode((string)$l3['backtest_results'], true) ?: [];
+            $attempts = (int)($meta['l3_attempts'] ?? 0) + 1;
+            $verdict = null;
+            $agedOut = (time() - (strtotime((string)$l3['created_at']) ?: time())) > 7200;
+            if (!$agedOut && $l3Advisor !== null) {
+                $ask = $l3Advisor->ask((string)$l3['coin_pair'], $snapshot);
+                if (!empty($ask['ok']) && is_array($ask['verdict'] ?? null)) {
+                    $verdict = $ask['verdict'];
+                }
+            }
+            if ($verdict === null && $attempts < 2 && !$agedOut) {
+                $conn->executeStatement(
+                    "UPDATE agent_decisions SET backtest_results = ? WHERE id = ? AND status = 'pending_ai'",
+                    [(string)json_encode(array_merge($meta, ['l3_attempts' => $attempts])), (int)$l3['id']]
+                );
+                copilotEcho("escalation #{$l3['id']}: no usable verdict, retry next run (attempt $attempts)");
+                continue;
+            }
+            $needsHuman = $verdict === null
+                || ($l3AgentSvc->get((int)$l3['user_id'])['autonomy_mode'] ?? 'approval_required') === 'approval_required';
+            if ($needsHuman) {
+                $conn->executeStatement(
+                    "UPDATE agent_decisions
+                     SET status = 'pending_approval',
+                         justification = COALESCE(justification, '') || ?,
+                         backtest_results = ?
+                     WHERE id = ? AND status = 'pending_ai'",
+                    [
+                        $agedOut
+                            ? ' | L3 escalation aged out (2h) — human decision required.'
+                            : ($verdict === null
+                                ? ' | L3 AI unavailable after 2 attempts — human decision required.'
+                                : sprintf(' | L3 AI recommends %s (conf %.2f): %s', $verdict['action'], $verdict['confidence'], $verdict['reason'])),
+                        (string)json_encode(array_merge($meta, ['l3_attempts' => $attempts, 'l3_verdict' => $verdict])),
+                        (int)$l3['id'],
+                    ]
+                );
+                copilotEcho("escalation #{$l3['id']}: routed to human" . ($agedOut ? ' (aged out)' : ($verdict === null ? ' (AI unavailable)' : ' (recommendation attached)')));
+            } else {
+                $conn->executeStatement(
+                    "UPDATE agent_decisions
+                     SET status = 'auto_approved', proposed_config = ?,
+                         justification = COALESCE(justification, '') || ?,
+                         approved_by = 'ai_l3', approved_at = ?, backtest_results = ?
+                     WHERE id = ? AND status = 'pending_ai'",
+                    [
+                        (string)json_encode($verdict),
+                        sprintf(' | L3 AI verdict: %s (conf %.2f): %s', $verdict['action'], $verdict['confidence'], $verdict['reason']),
+                        date('Y-m-d H:i:s'),
+                        (string)json_encode(array_merge($meta, ['l3_attempts' => $attempts])),
+                        (int)$l3['id'],
+                    ]
+                );
+                copilotEcho("escalation #{$l3['id']}: auto_approved {$verdict['action']} (conf {$verdict['confidence']})");
+            }
+            $auditLogger->log((int)$l3['bot_id'], (int)$l3['user_id'], 'AI_L3_VERDICT', sprintf(
+                'L3 escalation %s: %s',
+                (string)($snapshot['trigger'] ?? '?'),
+                $verdict === null ? 'AI unavailable, human required' : sprintf('%s conf=%.2f (%s)', $verdict['action'], $verdict['confidence'], $verdict['reason'])
+            ), [
+                'decision_id' => (int)$l3['id'],
+                'action'      => $verdict['action'] ?? null,
+                'confidence'  => $verdict['confidence'] ?? null,
+                'routed'      => $needsHuman ? 'human' : 'auto',
+            ]);
+        }
+    } catch (Throwable $l3e) {
+        copilotEcho('escalation pass failed: ' . $l3e->getMessage());
+    }
+}
+
 function copilotEcho(string $msg): void
 {
     echo '[' . date('H:i:s') . '] ' . $msg . "\n";
@@ -93,6 +188,10 @@ function fetchFearGreed(\Doctrine\DBAL\Connection $db): ?int
 $candlesPerTf = ['5m' => 400, '1h' => 100, '4h' => 60, '1d' => 60];
 
 $runOnce = static function () use ($onlyBot, $candlesPerTf): void {
+    // L3 escalations are answered even when the L1 analyzer/feature gate is
+    // down — the pass itself routes 'AI unavailable' cases to a human.
+    processEscalationPass();
+
     $analyzer = L1Analyzer::fromConfig();
     if ($analyzer === null) {
         copilotEcho('AI Copilot L1: AI_API_KEY/AI_BASE_URL/AI_MODEL not set — nothing to do.');
@@ -372,90 +471,6 @@ $runOnce = static function () use ($onlyBot, $candlesPerTf): void {
             copilotEcho("bot #$botId: error — " . $e->getMessage());
             $failed++;
         }
-    }
-
-    // --- Phase 4: answer queued L3 escalations (status pending_ai) ---------
-    // The loop only WRITES verdicts (never touches exchanges): the daemon
-    // executes them. approval_required users always get a human gate; the AI
-    // recommendation is still attached so the human sees it in the UI.
-    try {
-        $l3Rows = $conn->fetchAllAssociative(
-            "SELECT d.id, d.user_id, d.bot_id, d.market_snapshot, d.backtest_results, b.coin_pair
-             FROM agent_decisions d JOIN bots b ON b.id = d.bot_id
-             WHERE d.decision_type = 'ai_escalation' AND d.status = 'pending_ai'
-             ORDER BY d.id ASC LIMIT 5"
-        );
-        if ($l3Rows !== []) {
-            $l3Advisor = EscalationAdvisor::fromConfig();
-            $l3AgentSvc = new AgentSettingsService($conn);
-            foreach ($l3Rows as $l3) {
-                $snapshot = json_decode((string)$l3['market_snapshot'], true) ?: [];
-                $meta = json_decode((string)$l3['backtest_results'], true) ?: [];
-                $attempts = (int)($meta['l3_attempts'] ?? 0) + 1;
-                $verdict = null;
-                if ($l3Advisor !== null) {
-                    $ask = $l3Advisor->ask((string)$l3['coin_pair'], $snapshot);
-                    if (!empty($ask['ok']) && is_array($ask['verdict'] ?? null)) {
-                        $verdict = $ask['verdict'];
-                    }
-                }
-                if ($verdict === null && $attempts < 2) {
-                    $conn->executeStatement(
-                        "UPDATE agent_decisions SET backtest_results = ? WHERE id = ? AND status = 'pending_ai'",
-                        [(string)json_encode(array_merge($meta, ['l3_attempts' => $attempts])), (int)$l3['id']]
-                    );
-                    copilotEcho("escalation #{$l3['id']}: no usable verdict, retry next run (attempt $attempts)");
-                    continue;
-                }
-                $needsHuman = $verdict === null
-                    || ($l3AgentSvc->get((int)$l3['user_id'])['autonomy_mode'] ?? 'approval_required') === 'approval_required';
-                if ($needsHuman) {
-                    $conn->executeStatement(
-                        "UPDATE agent_decisions
-                         SET status = 'pending_approval',
-                             justification = COALESCE(justification, '') || ?,
-                             backtest_results = ?
-                         WHERE id = ? AND status = 'pending_ai'",
-                        [
-                            $verdict === null
-                                ? ' | L3 AI unavailable after 2 attempts — human decision required.'
-                                : sprintf(' | L3 AI recommends %s (conf %.2f): %s', $verdict['action'], $verdict['confidence'], $verdict['reason']),
-                            (string)json_encode(array_merge($meta, ['l3_attempts' => $attempts, 'l3_verdict' => $verdict])),
-                            (int)$l3['id'],
-                        ]
-                    );
-                    copilotEcho("escalation #{$l3['id']}: routed to human" . ($verdict === null ? ' (AI unavailable)' : ' (recommendation attached)'));
-                } else {
-                    $conn->executeStatement(
-                        "UPDATE agent_decisions
-                         SET status = 'auto_approved', proposed_config = ?,
-                             justification = COALESCE(justification, '') || ?,
-                             approved_by = 'ai_l3', approved_at = ?, backtest_results = ?
-                         WHERE id = ? AND status = 'pending_ai'",
-                        [
-                            (string)json_encode($verdict),
-                            sprintf(' | L3 AI verdict: %s (conf %.2f): %s', $verdict['action'], $verdict['confidence'], $verdict['reason']),
-                            date('Y-m-d H:i:s'),
-                            (string)json_encode(array_merge($meta, ['l3_attempts' => $attempts])),
-                            (int)$l3['id'],
-                        ]
-                    );
-                    copilotEcho("escalation #{$l3['id']}: auto_approved {$verdict['action']} (conf {$verdict['confidence']})");
-                }
-                $auditLogger->log((int)$l3['bot_id'], (int)$l3['user_id'], 'AI_L3_VERDICT', sprintf(
-                    'L3 escalation %s: %s',
-                    (string)($snapshot['trigger'] ?? '?'),
-                    $verdict === null ? 'AI unavailable, human required' : sprintf('%s conf=%.2f (%s)', $verdict['action'], $verdict['confidence'], $verdict['reason'])
-                ), [
-                    'decision_id' => (int)$l3['id'],
-                    'action'      => $verdict['action'] ?? null,
-                    'confidence'  => $verdict['confidence'] ?? null,
-                    'routed'      => $needsHuman ? 'human' : 'auto',
-                ]);
-            }
-        }
-    } catch (Throwable $l3e) {
-        copilotEcho('escalation pass failed: ' . $l3e->getMessage());
     }
 
     copilotEcho("run done: decided=$decided skipped=$skipped failed=$failed bots=" . count($bots));
