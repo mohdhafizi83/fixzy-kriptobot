@@ -52,6 +52,12 @@ function copilotEcho(string $msg): void
     echo '[' . date('H:i:s') . '] ' . $msg . "\n";
 }
 
+/** Replace invalid UTF-8 byte sequences so json_encode of audit context never fails. */
+function scrubUtf8(string $s): string
+{
+    return mb_check_encoding($s, 'UTF-8') ? $s : (string)mb_convert_encoding($s, 'UTF-8', 'UTF-8');
+}
+
 /** Fear & Greed (alternative.me, free) cached 1h in app_settings; null on failure. */
 function fetchFearGreed(\Doctrine\DBAL\Connection $db): ?int
 {
@@ -98,7 +104,13 @@ $runOnce = static function () use ($onlyBot, $candlesPerTf): void {
 
     $auditLogger = new AuditLogger($conn);
     $agentSettingsService = new AgentSettingsService($conn);
-    $stmt = $conn->executeQuery("SELECT id, user_id, coin_pair, runtime_state, configuration FROM bots WHERE status = 1" . ($onlyBot !== null ? " AND id = " . $onlyBot : ""));
+    $botSql = "SELECT id, user_id, coin_pair, runtime_state, configuration FROM bots WHERE status = 1";
+    $botParams = [];
+    if ($onlyBot !== null) {
+        $botSql .= " AND id = ?";
+        $botParams[] = $onlyBot;
+    }
+    $stmt = $conn->executeQuery($botSql, $botParams);
     $bots = $stmt->fetchAllAssociative();
 
     $fng = fetchFearGreed($conn);
@@ -242,9 +254,12 @@ $runOnce = static function () use ($onlyBot, $candlesPerTf): void {
                     'trust_mode' => $mode,
                     'meets_confidence' => $meets,
                 ];
+                // Targeted atomic write: only our cache key is touched, so a
+                // daemon state write during the (slow) LLM call is never
+                // clobbered — json_set applies to the CURRENT row value.
                 $conn->executeStatement(
-                    "UPDATE bots SET runtime_state = ? WHERE id = ?",
-                    [json_encode($state), $botId]
+                    "UPDATE bots SET runtime_state = json_set(COALESCE(NULLIF(runtime_state, ''), '{}'), '$.ai_copilot_cache', json(?)) WHERE id = ?",
+                    [(string)json_encode($state['ai_copilot_cache']), $botId]
                 );
                 $auditLogger->log($botId, $userId, 'AI_L1_DECISION', sprintf(
                     'L1 %s: %s/%s conf=%.2f (%s)',
@@ -261,7 +276,9 @@ $runOnce = static function () use ($onlyBot, $candlesPerTf): void {
                     'decision' => $decision,
                     'params_applied' => $params,
                     'meets_confidence' => $meets,
-                    'raw' => $result['raw'] ?? '',
+                    // scrub invalid UTF-8 and cap size: a hostile/compromised
+                    // LLM must not bloat audit_logs or break json_encode.
+                    'raw' => mb_substr(scrubUtf8((string)($result['raw'] ?? '')), 0, 2000),
                 ]);
                 copilotEcho("bot #$botId: L1 OK — {$decision['regime']}/{$decision['bias']} conf=" . $decision['confidence']);
                 $decided++;
@@ -274,8 +291,11 @@ $runOnce = static function () use ($onlyBot, $candlesPerTf): void {
                     }
                     $auditLogger->log($botId, $userId, 'AI_L1_ERROR', 'L1 failed (' . ($result['stage'] ?? '?') . '): ' . implode('; ', $result['errors'] ?? []), [
                         'stage' => $result['stage'] ?? 'unknown',
-                        'errors' => $result['errors'] ?? [],
-                        'raw' => mb_substr((string)($result['raw'] ?? ''), 0, 1000),
+                        'errors' => array_map(
+                            static fn(string $e): string => mb_substr(scrubUtf8($e), 0, 500),
+                            $result['errors'] ?? []
+                        ),
+                        'raw' => mb_substr(scrubUtf8((string)($result['raw'] ?? '')), 0, 1000),
                         'cache_kept' => $cache !== [],
                     ]);
                 }
