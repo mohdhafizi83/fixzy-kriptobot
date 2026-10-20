@@ -1,0 +1,11 @@
+[Unit]
+Description=Fixzy Kriptobot AI Copilot L1 loop (shadow decisions, one LLM call per closed decision candle)
+After=network-online.target kriptobot-daemon.service
+
+[Service]
+Type=oneshot
+User=fizi
+WorkingDirectory=/home/fizi/projects/fixzy-kriptobot
+ExecStart=/home/fizi/projects/fixzy-kriptobot/bin/php_sqlite.sh /home/fizi/projects/fixzy-kriptobot/bin/ai_copilot_loop.php --once
+StandardOutput=append:/home/fizi/projects/fixzy-kriptobot/storage/logs/ai_copilot.log
+StandardError=append:/home/fizi/projects/fixzy-kriptobot/storage/logs/ai_copilot.log
