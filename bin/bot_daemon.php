@@ -162,6 +162,14 @@ foreach ($featureStatuses as $fs) {
 }
 echo "----------------------\n";
 
+// --- AI COPILOT (Phase 0): agent_settings wiring ----------------------------
+// The daemon reads agent_settings once per user per tick so the effective
+// AI Copilot trust level can be resolved per bot. Phase 0 only resolves and
+// logs the mode — no LLM call happens anywhere in this loop.
+$agentSettingsService = new \Fixzy\Kriptobot\Service\AgentSettingsService($conn);
+$agentSettingsCache = [];
+// ---------------------------------------------------------------------------
+
 // Cooldown so disabled-feature notices don't spam every tick (1 per hour).
 $featureNoticeCooldown = [];
 $notifyFeatureDisabled = function (string $featureKey, string $context, int $botId = 0, int $userId = 0) use ($featureService, $notifier, $auditLogger): void {
@@ -226,6 +234,10 @@ if ($singleTick) {
 try {
 while (true) {
     echo "\n[" . date('H:i:s') . "] --- TICK #$tickCount ---\n";
+
+    // Refresh agent_settings once per user per tick so UI toggles take effect
+    // without a daemon restart.
+    $agentSettingsCache = [];
 
     $hasActiveDeal = false;
 
@@ -350,6 +362,27 @@ while (true) {
             // (see FeatureStatusService). A key that fails verification keeps the
             // feature disabled with a visible reason.
             $aiEnabled = $featureService->isEnabled('ai');
+
+            // --- AI COPILOT (Phase 0): resolve effective trust level -------
+            // Reads bots.configuration.ai_copilot + agent_settings. Missing or
+            // invalid section resolves to 'off' — old bots are untouched and no
+            // LLM call is made here. Later phases consume $aiCopilotMode.
+            $aiCopilot = \Fixzy\Kriptobot\Config\AiCopilotConfig::resolve($config);
+            if (!array_key_exists($userId, $agentSettingsCache)) {
+                $agentSettingsCache[$userId] = $agentSettingsService->get($userId);
+            }
+            $aiCopilotMode = \Fixzy\Kriptobot\Config\AiCopilotConfig::effectiveTrustLevel(
+                $aiCopilot,
+                !empty($agentSettingsCache[$userId]['agent_enabled']),
+                $aiEnabled
+            );
+            if ($aiCopilot['enabled'] && $aiCopilotMode === 'off') {
+                echo "      🤖 [AI COPILOT] Bot #{$botId} configured '{$aiCopilot['trust_level']}' held OFF (agent switch or AI feature not enabled).\n";
+            } elseif ($aiCopilotMode !== 'off') {
+                echo "      🤖 [AI COPILOT] Bot #{$botId} effective trust level: {$aiCopilotMode} (Phase 0: log only, no LLM calls).\n";
+            }
+            // ----------------------------------------------------------------
+
             $crossVerifier = new CrossVerifier(7200); // News time window: 2 hours
             $crossVerifier->addFetcher(new CryptoPanicFetcher($cryptoPanicApiKey));
             $crossVerifier->addFetcher(new BlockonomiFetcher());

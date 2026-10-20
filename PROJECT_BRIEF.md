@@ -2,7 +2,7 @@
 
 > Dokumen handoff untuk profile `kriptobot`. Baca habis sebelum mula.
 > Disusun 2026-10-19 oleh profile `advisor` selepas audit kod live.
-> Status: BELUM COMMIT — profile kriptobot commit sebagai sebahagian fasa 0.
+> Status: FASA 0 SELESAI — config section + validator + wiring daemon + toggle UI.
 
 ## 1. Visi
 

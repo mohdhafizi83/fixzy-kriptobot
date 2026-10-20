@@ -276,30 +276,13 @@ class ApprovalManager
 
     /**
      * Get agent settings for a user.
+     *
+     * Delegates to AgentSettingsService::get() so the daemon and the approval
+     * flow always read the same values with the same defaults.
      */
     public function getAgentSettings(int $userId): array
     {
-        $row = $this->db->executeQuery(
-            "SELECT * FROM agent_settings WHERE user_id = ?",
-            [$userId]
-        )->fetchAssociative();
-
-        if (!$row) {
-            return [
-                'agent_enabled'         => false,
-                'autonomy_mode'         => 'approval_required',
-                'max_capital_per_bot'   => 1000.0,
-                'max_total_capital'     => 10000.0,
-                'allowed_actions'       => ['analyze_market', 'view_data', 'run_backtest'],
-                'telegram_notifications' => true,
-                'language_preference'   => 'auto',
-            ];
-        }
-
-        $row['allowed_actions'] = json_decode($row['allowed_actions'], true)
-            ?? ['analyze_market', 'view_data', 'run_backtest'];
-
-        return $row;
+        return (new \Fixzy\Kriptobot\Service\AgentSettingsService($this->db))->get($userId);
     }
 
     /**

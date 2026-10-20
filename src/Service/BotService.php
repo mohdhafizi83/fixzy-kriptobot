@@ -117,6 +117,18 @@ class BotService
             $existing = $this->get($userId, $botId);
             $configToSave = $this->deepMerge($existing['configuration'] ?? [], $configToSave);
         }
+
+        // AI Copilot section is optional; when present it must pass validation
+        // and is normalized to safe values. Configs without it are untouched
+        // (backward compatibility: old bots keep behaving exactly as before).
+        if (array_key_exists('ai_copilot', $configToSave)) {
+            $errors = \Fixzy\Kriptobot\Config\AiCopilotConfig::validate($configToSave['ai_copilot']);
+            if ($errors !== []) {
+                throw new RuntimeException(implode(' ', $errors));
+            }
+            $configToSave['ai_copilot'] = \Fixzy\Kriptobot\Config\AiCopilotConfig::normalize($configToSave['ai_copilot']);
+        }
+
         $configJson = json_encode($configToSave);
         if ($configJson === false) {
             throw new RuntimeException('Failed to encode the JSON configuration. The data may contain invalid characters.');

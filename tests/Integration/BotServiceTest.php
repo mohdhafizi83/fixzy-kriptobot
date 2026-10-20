@@ -177,4 +177,77 @@ class BotServiceTest extends TestCase
             'general' => ['name' => 'Hacked', 'custom_pairs' => 'BTC/USDT', 'capital' => 10],
         ]);
     }
+
+    /**
+     * Regression: payloads without ai_copilot store no such key — old bots
+     * keep byte-identical configuration behaviour.
+     * @return void
+     */
+    public function testConfigWithoutAiCopilotIsUntouched(): void
+    {
+        $res = $this->service->save(1, null, [
+            'is_enabled' => true,
+            'general' => ['name' => 'Legacy', 'custom_pairs' => 'BTC/USDT', 'capital' => 10],
+            'base_order' => ['order_type' => 'market'],
+        ]);
+        $bot = $this->service->get(1, $res['bot_id']);
+        $this->assertArrayNotHasKey('ai_copilot', $bot['configuration']);
+    }
+
+    /**
+     * A valid ai_copilot section is normalized and persisted.
+     * @return void
+     */
+    public function testValidAiCopilotIsNormalizedAndStored(): void
+    {
+        $res = $this->service->save(1, null, [
+            'is_enabled' => true,
+            'general' => ['name' => 'AI Bot', 'custom_pairs' => 'BTC/USDT', 'capital' => 10],
+            'ai_copilot' => [
+                'enabled' => true,
+                'trust_level' => 'shadow',
+                'min_confidence' => 0.75,
+            ],
+        ]);
+        $bot = $this->service->get(1, $res['bot_id']);
+        $ai = $bot['configuration']['ai_copilot'];
+        $this->assertTrue($ai['enabled']);
+        $this->assertSame('shadow', $ai['trust_level']);
+        $this->assertSame(0.75, $ai['min_confidence']);
+        // Missing keys filled from safe defaults
+        $this->assertSame('1h', $ai['decision_timeframe']);
+        $this->assertSame(3600, $ai['cache_ttl_seconds']);
+        // JSON round-trip stores 3.0 as int 3 — compare numerically.
+        $this->assertSame(3.0, (float)$ai['escalation']['flash_move_pct']);
+    }
+
+    /**
+     * An invalid ai_copilot section is rejected with a clear error and the
+     * bot row is left untouched.
+     * @return void
+     */
+    public function testInvalidAiCopilotSaveThrowsAndKeepsOldConfig(): void
+    {
+        $res = $this->service->save(1, null, [
+            'is_enabled' => true,
+            'general' => ['name' => 'Guarded', 'custom_pairs' => 'BTC/USDT', 'capital' => 10],
+            'ai_copilot' => ['enabled' => false, 'trust_level' => 'off'],
+        ]);
+        $botId = $res['bot_id'];
+
+        try {
+            $this->service->save(1, $botId, [
+                'is_enabled' => true,
+                'general' => ['name' => 'Guarded', 'custom_pairs' => 'BTC/USDT', 'capital' => 10],
+                'ai_copilot' => ['enabled' => true, 'trust_level' => 'yolo'],
+            ]);
+            $this->fail('Expected RuntimeException for invalid ai_copilot config.');
+        } catch (\RuntimeException $e) {
+            $this->assertStringContainsString('trust_level', $e->getMessage());
+        }
+
+        // Original configuration survived the rejected save.
+        $bot = $this->service->get(1, $botId);
+        $this->assertSame('off', $bot['configuration']['ai_copilot']['trust_level']);
+    }
 }

@@ -31,6 +31,39 @@ class AgentSettingsService
     }
 
     /**
+     * Read agent settings for a user with safe defaults when no row exists.
+     *
+     * Defaults mirror the schema defaults: agent OFF, approval required.
+     * This is the single read path shared by the daemon and ApprovalManager.
+     *
+     * @return array<string, mixed>
+     */
+    public function get(int $userId): array
+    {
+        $row = $this->db->fetchAssociative(
+            "SELECT * FROM agent_settings WHERE user_id = ?",
+            [$userId]
+        );
+
+        if (!$row) {
+            return [
+                'agent_enabled'          => false,
+                'autonomy_mode'          => 'approval_required',
+                'max_capital_per_bot'    => 1000.0,
+                'max_total_capital'      => 10000.0,
+                'allowed_actions'        => ['analyze_market', 'view_data', 'run_backtest'],
+                'telegram_notifications' => true,
+                'language_preference'    => 'auto',
+            ];
+        }
+
+        $row['allowed_actions'] = json_decode((string)$row['allowed_actions'], true)
+            ?? ['analyze_market', 'view_data', 'run_backtest'];
+
+        return $row;
+    }
+
+    /**
      * Upsert agent settings for a user.
      *
      * @param array{agent_enabled?: bool, autonomy_mode?: string, max_capital_per_bot?: float,

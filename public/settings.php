@@ -631,6 +631,100 @@ SessionGuard::requireWeb();
                 </div>
             </div>
 
+            <!-- ============ 5. AI COPILOT (OPTIONAL, DEFAULT OFF) ============ -->
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <h2 class="text-lg font-bold mb-4 flex items-center text-purple-800 border-b pb-2">
+                    <span class="bg-purple-100 text-purple-800 w-8 h-8 rounded-full inline-flex items-center justify-center mr-3">5</span>
+                    AI Copilot <span class="ml-2 text-xs font-bold text-purple-600 bg-purple-50 border border-purple-200 rounded-full px-2 py-0.5">OPTIONAL — OFF BY DEFAULT</span>
+                </h2>
+
+                <div class="flex items-center justify-between p-4 bg-purple-50 border border-purple-100 rounded-lg">
+                    <div>
+                        <p class="font-bold text-gray-800">Enable AI Copilot</p>
+                        <p class="text-xs text-gray-600 mt-0.5">The AI analyses the market on a slower timeframe and can suggest strategy parameters. Final trade decisions still run through your deterministic rules. Hard risk limits stay ON no matter what.</p>
+                    </div>
+                    <label class="flex items-center cursor-pointer flex-shrink-0 ml-4">
+                        <div class="relative">
+                            <input type="checkbox" x-model="form.ai_copilot.enabled" class="sr-only">
+                            <div class="block bg-gray-300 w-12 h-7 rounded-full transition-colors duration-300" :class="{'bg-purple-500': form.ai_copilot.enabled}"></div>
+                            <div class="dot absolute left-1 top-1 bg-white w-5 h-5 rounded-full transition-transform duration-300" :class="{'transform translate-x-5': form.ai_copilot.enabled}"></div>
+                        </div>
+                    </label>
+                </div>
+
+                <div x-show="form.ai_copilot.enabled" x-transition class="mt-4 space-y-4">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label class="block text-xs font-bold text-gray-600 mb-2">Trust Level</label>
+                            <select x-model="form.ai_copilot.trust_level" class="w-full border rounded p-2 bg-white outline-none focus:ring-2 focus:ring-purple-500">
+                                <option value="off">Off — AI does nothing</option>
+                                <option value="shadow">Shadow — AI writes suggestions only (no actions)</option>
+                                <option value="advisor">Advisor — AI tunes parameters, rules execute</option>
+                                <option value="active">Active — full mode incl. event escalation</option>
+                            </select>
+                            <p class="text-xs text-gray-500 mt-1" x-text="aiTrustHint()"></p>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-600 mb-2">Decision Timeframe</label>
+                            <select x-model="form.ai_copilot.decision_timeframe" class="w-full border rounded p-2 bg-white outline-none focus:ring-2 focus:ring-purple-500">
+                                <option value="15m">15 minutes</option>
+                                <option value="1h">1 hour</option>
+                                <option value="4h">4 hours</option>
+                                <option value="1d">1 day</option>
+                            </select>
+                            <p class="text-xs text-gray-500 mt-1">How often the AI re-analyses the market. The 1-minute rule loop never calls the AI.</p>
+                        </div>
+                    </div>
+
+                    <div class="border border-gray-200 rounded-lg">
+                        <button type="button" @click="aiAdvanced = !aiAdvanced" class="w-full flex justify-between items-center px-4 py-3 text-sm font-bold text-gray-700 hover:bg-gray-50 rounded-lg">
+                            <span>⚙️ Advanced Parameters</span>
+                            <span x-text="aiAdvanced ? '▲' : '▼'"></span>
+                        </button>
+                        <div x-show="aiAdvanced" x-transition class="px-4 pb-4 space-y-4">
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-600 mb-2">Min. Confidence (0–1)</label>
+                                    <input type="number" step="0.05" min="0" max="1" x-model.number="form.ai_copilot.min_confidence" class="w-full border rounded p-2 outline-none">
+                                    <p class="text-xs text-gray-400 mt-1">Below this the previous parameters are kept.</p>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-600 mb-2">AI Cache TTL (seconds)</label>
+                                    <input type="number" step="60" min="300" max="86400" x-model.number="form.ai_copilot.cache_ttl_seconds" class="w-full border rounded p-2 outline-none">
+                                    <p class="text-xs text-gray-400 mt-1">Max age of an AI decision before it is treated as expired.</p>
+                                </div>
+                            </div>
+                            <div>
+                                <p class="text-xs font-bold text-gray-600 mb-2">Event Escalation Triggers</p>
+                                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <div>
+                                        <label class="block text-xs font-bold text-gray-600 mb-2">Flash Move (% move)</label>
+                                        <input type="number" step="0.5" min="0.5" max="20" x-model.number="form.ai_copilot.escalation.flash_move_pct" class="w-full border rounded p-2 outline-none">
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-bold text-gray-600 mb-2">Flash Move Window (min)</label>
+                                        <input type="number" step="1" min="1" max="120" x-model.number="form.ai_copilot.escalation.flash_move_window_min" class="w-full border rounded p-2 outline-none">
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-bold text-gray-600 mb-2">Max Drawdown (%)</label>
+                                        <input type="number" step="0.5" min="0.5" max="50" x-model.number="form.ai_copilot.escalation.max_drawdown_pct" class="w-full border rounded p-2 outline-none">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="p-4 bg-amber-50 border border-amber-200 text-amber-800 text-xs rounded-lg">
+                        <strong>Requirements:</strong> the AI Copilot only becomes active when the AI integration is verified in <em>Settings → Features</em> and the Agent switch is ON in the <em>Agent</em> page. Until then the bot keeps running exactly like today.
+                    </div>
+                </div>
+
+                <div x-show="!form.ai_copilot.enabled" class="mt-4 p-4 bg-gray-50 border border-gray-200 text-gray-600 text-xs rounded-lg">
+                    Currently <strong>OFF</strong> — this bot trades purely on your rules, with zero AI involvement.
+                </div>
+            </div>
+            <!-- =============================================================== -->
+
             <div class="fixed bottom-0 left-0 w-full bg-white border-t p-4 flex justify-end shadow-[0_-10px_20px_-10px_rgba(0,0,0,0.15)] z-40">
                 <div class="max-w-5xl mx-auto w-full flex justify-between items-center">
                     <span id="saveStatus" class="text-sm font-bold text-gray-500 hidden md:block"></span>
@@ -1169,7 +1263,24 @@ SessionGuard::requireWeb();
                         partial_sell_enabled: false, partial_targets: '',
                         sell_conditions: [] 
                     },
+                    ai_copilot: {
+                        enabled: false, trust_level: 'off', decision_timeframe: '1h',
+                        min_confidence: 0.6, cache_ttl_seconds: 3600,
+                        escalation: { flash_move_pct: 3.0, flash_move_window_min: 10, max_drawdown_pct: 5.0 }
+                    },
                     runtime_state: null
+                },
+
+                // AI Copilot UI state
+                aiAdvanced: false,
+                aiTrustHint() {
+                    const hints = {
+                        off: 'The AI makes no calls and changes nothing.',
+                        shadow: 'The AI logs what it WOULD do next to your real bot decisions. Nothing is acted on.',
+                        advisor: 'The AI tunes strategy parameters; your rules still make every trade decision.',
+                        active: 'Full mode: parameter tuning plus event escalation (flash moves, drawdown limits). Escalations may require your approval.'
+                    };
+                    return hints[this.form.ai_copilot.trust_level] || '';
                 },
 
                 isLockedActive() {
@@ -1216,6 +1327,15 @@ SessionGuard::requireWeb();
                     // Phase 1: wait for the v1 API bootstrap before building the UI.
                     await pageDataReady;
                     this.form = window.initialBotData || this.form;
+                    // Old bots have no ai_copilot section — hydrate safe defaults
+                    // so the UI always binds against a complete object.
+                    const aiDefaults = {
+                        enabled: false, trust_level: 'off', decision_timeframe: '1h',
+                        min_confidence: 0.6, cache_ttl_seconds: 3600,
+                        escalation: { flash_move_pct: 3.0, flash_move_window_min: 10, max_drawdown_pct: 5.0 }
+                    };
+                    this.form.ai_copilot = Object.assign({}, aiDefaults, this.form.ai_copilot || {});
+                    this.form.ai_copilot.escalation = Object.assign({}, aiDefaults.escalation, this.form.ai_copilot.escalation || {});
                     this.availableExchanges = window.availableExchanges || [];
                     this.featureStatuses = window.featureStatuses || [];
                     this.$nextTick(() => {
@@ -1526,6 +1646,13 @@ SessionGuard::requireWeb();
                     let payload = JSON.parse(JSON.stringify(this.form));
                     payload.general.min_required = this.calculateMinCapital();
                     payload.csrf_token = window.csrfToken;
+
+                    // AI Copilot: the enable switch is the master — when it is
+                    // off the effective trust level is always 'off' (mirrors the
+                    // server-side validator in AiCopilotConfig).
+                    if (payload.ai_copilot && !payload.ai_copilot.enabled) {
+                        payload.ai_copilot.trust_level = 'off';
+                    }
 
                     if (!payload.general.is_custom_capital) {
                         payload.general.capital = 'AUTO';
