@@ -401,7 +401,7 @@ $runOnce = static function () use ($onlyBot, $candlesPerTf): void {
                 }
                 if ($verdict === null && $attempts < 2) {
                     $conn->executeStatement(
-                        "UPDATE agent_decisions SET backtest_results = ? WHERE id = ?",
+                        "UPDATE agent_decisions SET backtest_results = ? WHERE id = ? AND status = 'pending_ai'",
                         [(string)json_encode(array_merge($meta, ['l3_attempts' => $attempts])), (int)$l3['id']]
                     );
                     copilotEcho("escalation #{$l3['id']}: no usable verdict, retry next run (attempt $attempts)");
@@ -415,7 +415,7 @@ $runOnce = static function () use ($onlyBot, $candlesPerTf): void {
                          SET status = 'pending_approval',
                              justification = COALESCE(justification, '') || ?,
                              backtest_results = ?
-                         WHERE id = ?",
+                         WHERE id = ? AND status = 'pending_ai'",
                         [
                             $verdict === null
                                 ? ' | L3 AI unavailable after 2 attempts — human decision required.'
@@ -431,7 +431,7 @@ $runOnce = static function () use ($onlyBot, $candlesPerTf): void {
                          SET status = 'auto_approved', proposed_config = ?,
                              justification = COALESCE(justification, '') || ?,
                              approved_by = 'ai_l3', approved_at = ?, backtest_results = ?
-                         WHERE id = ?",
+                         WHERE id = ? AND status = 'pending_ai'",
                         [
                             (string)json_encode($verdict),
                             sprintf(' | L3 AI verdict: %s (conf %.2f): %s', $verdict['action'], $verdict['confidence'], $verdict['reason']),
