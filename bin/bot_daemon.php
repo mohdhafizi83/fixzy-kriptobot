@@ -179,8 +179,19 @@ $priceOf = static function (string $sym) use ($hasPriceHub): ?float {
     if (!$hasPriceHub) {
         return null;
     }
-    $v = apcu_fetch('kriptobot_price_binance_' . $sym);
-    return (is_numeric($v) && (float)$v > 0) ? (float)$v : null;
+    // The data hub stores 'kriptobot_price_{exchange}_{SYMBOL}' per configured
+    // exchange; check every exchange it refreshed this window (fallback binance).
+    $exchanges = apcu_fetch('kriptobot_hub_exchanges');
+    if (!is_array($exchanges) || $exchanges === []) {
+        $exchanges = ['binance'];
+    }
+    foreach ($exchanges as $ex) {
+        $v = apcu_fetch('kriptobot_price_' . $ex . '_' . $sym);
+        if (is_numeric($v) && (float)$v > 0 && is_finite((float)$v)) {
+            return (float)$v;
+        }
+    }
+    return null;
 };
 // ---------------------------------------------------------------------------
 // ---------------------------------------------------------------------------
@@ -263,7 +274,15 @@ while (true) {
         if (function_exists('apcu_store')) {
             $uniqueExchanges = $conn->executeQuery("SELECT DISTINCT exchange_name FROM user_api_keys")->fetchAllAssociative();
             if (empty($uniqueExchanges)) $uniqueExchanges = [['exchange_name' => 'binance']];
-            
+
+            // Publish which exchanges the hub serves so RiskGuard's $priceOf
+            // can look prices up on non-binance live setups.
+            $hubExchanges = array_values(array_unique(array_map(
+                static fn(array $e): string => strtolower((string)$e['exchange_name']),
+                $uniqueExchanges
+            )));
+            apcu_store('kriptobot_hub_exchanges', $hubExchanges, 15);
+
             foreach ($uniqueExchanges as $ex) {
                 $exName = strtolower($ex['exchange_name']);
                 $hubCacheKey = 'kriptobot_hub_status_' . $exName;
@@ -1322,6 +1341,7 @@ if (($state['current_holdings'] ?? 0) <= 0) {
                         $dcaGate = $riskGuard->checkDcaHeadroom($userId, $symbol, (float)$capitalToUse, $agentSettingsCache[$userId] ?? [], $priceOf);
                         if (!$dcaGate['ok']) {
                             echo "      🛡️ [RISK GUARD] DCA step " . ($currentDcaStep + 1) . " skipped: " . $dcaGate['reason'] . "\n";
+                            $repo->updateRuntimeState($botId, $state); // persist pre-gate mutations (trailing watermark)
                             continue;
                         }
                         
@@ -1415,6 +1435,7 @@ if (($state['current_holdings'] ?? 0) <= 0) {
                                 $dcaGate = $riskGuard->checkDcaHeadroom($userId, $symbol, (float)$capitalToUse, $agentSettingsCache[$userId] ?? [], $priceOf);
                                 if (!$dcaGate['ok']) {
                                     echo "      🛡️ [RISK GUARD] DCA step " . ($currentDcaStep + 1) . " skipped: " . $dcaGate['reason'] . "\n";
+                                    $repo->updateRuntimeState($botId, $state); // persist pre-gate mutations (trailing watermark)
                                     continue;
                                 }
                                 

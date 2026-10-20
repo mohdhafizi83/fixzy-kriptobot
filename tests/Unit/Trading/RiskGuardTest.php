@@ -63,7 +63,7 @@ class RiskGuardTest extends TestCase
      */
     private function seedSell(string $event, float $usdtValue, float $pnlPct, string $when = 'now'): void
     {
-        $ts = $when === 'now' ? gmdate('Y-m-d H:i:s') : gmdate('Y-m-d H:i:s', strtotime($when));
+        $ts = $when === 'now' ? date('Y-m-d H:i:s') : date('Y-m-d H:i:s', strtotime($when));
         $this->db->insert('audit_logs', [
             'bot_id' => 1, 'user_id' => 1, 'event_type' => $event,
             'context_data' => json_encode(['usdt_value' => $usdtValue, 'pnl_percent' => $pnlPct]),
@@ -81,7 +81,7 @@ class RiskGuardTest extends TestCase
             'context_data' => json_encode(['usdt_value' => 50.0]),
         ]);
         $this->seedSell('CUSTOM_SELL', 100.0, 100.0); // malformed-ish but valid: doubles cost
-        $net = $this->guard->dailyRealizedNetUsdt(1, (int)strtotime('today UTC'));
+        $net = $this->guard->dailyRealizedNetUsdt(1, (int)strtotime('today'));
         // 110*10/110 + 95*(-5)/95 + 100*100/200 = 10 - 5 + 50 = 55
         $this->assertSame(55.0, $net);
     }
@@ -97,7 +97,7 @@ class RiskGuardTest extends TestCase
             'bot_id' => 1, 'user_id' => 1, 'event_type' => 'CUT_LOSS',
             'context_data' => json_encode(['usdt_value' => 10.0, 'pnl_percent' => -100.0]),
         ]);
-        $this->assertSame(0.0, $this->guard->dailyRealizedNetUsdt(1, (int)strtotime('today UTC')));
+        $this->assertSame(0.0, $this->guard->dailyRealizedNetUsdt(1, (int)strtotime('today')));
     }
 
     public function testCapitalBaseSumsEnabledBotsWithFallback(): void

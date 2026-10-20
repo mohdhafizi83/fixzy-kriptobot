@@ -71,10 +71,13 @@ class RiskGuard
     public function dailyRealizedNetUsdt(int $userId, int $sinceTs): float
     {
         $placeholders = implode(',', array_fill(0, count(self::SELL_EVENTS), '?'));
+        // Window uses the SAME clock as AuditLogger (date(), server-local):
+        // $sinceTs is formatted with the local clock, so callers should pass
+        // strtotime('today') (local midnight). On UTC hosts this is UTC.
         $rows = $this->db->fetchAllAssociative(
             "SELECT context_data FROM audit_logs
              WHERE user_id = ? AND event_type IN ({$placeholders}) AND created_at >= ?",
-            array_merge([$userId], self::SELL_EVENTS, [gmdate('Y-m-d H:i:s', $sinceTs)])
+            array_merge([$userId], self::SELL_EVENTS, [date('Y-m-d H:i:s', $sinceTs)])
         );
 
         $net = 0.0;
@@ -123,7 +126,7 @@ class RiskGuard
     {
         $until = (int)($this->appSetting('risk_guard.kill_until_' . $userId) ?: 0);
         $base = $this->capitalBaseUsdt($userId, $agentSettings);
-        $loss = $this->dailyRealizedNetUsdt($userId, (int)strtotime('today UTC'));
+        $loss = $this->dailyRealizedNetUsdt($userId, (int)strtotime('today'));
         $limit = $base * $this->setting('daily_loss_pct') / 100;
         return [
             'tripped'    => $until > time(),

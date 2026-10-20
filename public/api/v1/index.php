@@ -19,13 +19,18 @@
 
 declare(strict_types=1);
 
+// Bootstrap-safe default: a fatal INSIDE bootstrap must never print traces here.
+ini_set('display_errors', '0');
+
 require_once dirname(__DIR__, 3) . '/src/bootstrap.php';
 
 // Never leak stack traces through the API on non-debug hosts (matches the
-// other public entry points; a bootstrap-time fatal must not print traces).
+// other public entry points).
 if (!\Fixzy\Kriptobot\Config\Config::isDebug()) {
     ini_set('display_errors', '0');
     ini_set('log_errors', '1');
+} else {
+    ini_set('display_errors', '1');
 }
 
 use Fixzy\Kriptobot\Config\Config;
