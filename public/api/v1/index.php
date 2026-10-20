@@ -404,6 +404,9 @@ try {
     ApiResponse::ok($result);
 } catch (ApiException $e) {
     ApiResponse::error($e->getMessage(), $e->getStatus());
+} catch (\Fixzy\Kriptobot\Service\ConfigValidationException $e) {
+    // Validator messages describe only the caller's own input — safe to show.
+    ApiResponse::error($e->getMessage(), 422);
 } catch (\RuntimeException $e) {
     error_log('API v1 validation error: ' . $e->getMessage());
     ApiResponse::error('Request could not be processed.', 422);

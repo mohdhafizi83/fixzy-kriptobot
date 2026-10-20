@@ -124,7 +124,7 @@ class BotService
         if (array_key_exists('ai_copilot', $configToSave)) {
             $errors = \Fixzy\Kriptobot\Config\AiCopilotConfig::validate($configToSave['ai_copilot']);
             if ($errors !== []) {
-                throw new RuntimeException(implode(' ', $errors));
+                throw new ConfigValidationException(implode(' ', $errors));
             }
             $configToSave['ai_copilot'] = \Fixzy\Kriptobot\Config\AiCopilotConfig::normalize($configToSave['ai_copilot']);
         }

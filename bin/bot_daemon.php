@@ -168,6 +168,21 @@ echo "----------------------\n";
 // logs the mode — no LLM call happens anywhere in this loop.
 $agentSettingsService = new \Fixzy\Kriptobot\Service\AgentSettingsService($conn);
 $agentSettingsCache = [];
+
+// --- HARD RISK LAYER (Phase 1): always ON for every bot ---------------------
+// Kill switch, exposure caps, cut-loss cooldown, order sanity. The AI can
+// never disable or widen these. State lives in app_settings + runtime_state.
+$riskGuard = new \Fixzy\Kriptobot\Trading\RiskGuard($conn);
+$killSwitchChecked = [];
+$hasPriceHub = function_exists('apcu_fetch') && function_exists('apcu_store');
+$priceOf = static function (string $sym) use ($hasPriceHub): ?float {
+    if (!$hasPriceHub) {
+        return null;
+    }
+    $v = apcu_fetch('kriptobot_price_binance_' . $sym);
+    return (is_numeric($v) && (float)$v > 0) ? (float)$v : null;
+};
+// ---------------------------------------------------------------------------
 // ---------------------------------------------------------------------------
 
 // Cooldown so disabled-feature notices don't spam every tick (1 per hour).
@@ -238,6 +253,7 @@ while (true) {
     // Refresh agent_settings once per user per tick so UI toggles take effect
     // without a daemon restart.
     $agentSettingsCache = [];
+    $killSwitchChecked = [];
 
     $hasActiveDeal = false;
 
@@ -369,7 +385,13 @@ while (true) {
             // LLM call is made here. Later phases consume $aiCopilotMode.
             $aiCopilot = \Fixzy\Kriptobot\Config\AiCopilotConfig::resolve($config);
             if (!array_key_exists($userId, $agentSettingsCache)) {
-                $agentSettingsCache[$userId] = $agentSettingsService->get($userId);
+                try {
+                    $agentSettingsCache[$userId] = $agentSettingsService->get($userId);
+                } catch (\Throwable $e) {
+                    // Fail-safe: unreadable agent settings must never crash the
+                    // tick — treat the agent as disabled (AI Copilot stays off).
+                    $agentSettingsCache[$userId] = ['agent_enabled' => false];
+                }
             }
             $aiCopilotMode = \Fixzy\Kriptobot\Config\AiCopilotConfig::effectiveTrustLevel(
                 $aiCopilot,
@@ -380,6 +402,40 @@ while (true) {
                 echo "      🤖 [AI COPILOT] Bot #{$botId} configured '{$aiCopilot['trust_level']}' held OFF (agent switch or AI feature not enabled).\n";
             } elseif ($aiCopilotMode !== 'off') {
                 echo "      🤖 [AI COPILOT] Bot #{$botId} effective trust level: {$aiCopilotMode} (Phase 0: log only, no LLM calls).\n";
+            }
+            // ----------------------------------------------------------------
+
+            // --- RISK GUARD (Phase 1): daily-loss kill switch, 1x per user --
+            if (!isset($killSwitchChecked[$userId])) {
+                $killSwitchChecked[$userId] = true;
+                try {
+                    $ks = $riskGuard->killSwitchState($userId, $agentSettingsCache[$userId]);
+                    if (!$ks['tripped'] && $ks['base_usdt'] > 0 && $ks['loss_usdt'] <= -$ks['limit_usdt']) {
+                        $until = $riskGuard->tripKillSwitch($userId);
+                        $ksMsg = sprintf(
+                            "🛑 KILL SWITCH TRIPPED: daily net loss $%.2f (%.2f%%) exceeded the limit of $%.2f (%.1f%% of $%.2f base). New entries are blocked until %s UTC.",
+                            abs($ks['loss_usdt']),
+                            abs($ks['loss_pct']),
+                            $ks['limit_usdt'],
+                            $riskGuard->setting('daily_loss_pct'),
+                            $ks['base_usdt'],
+                            gmdate('Y-m-d H:i', $until)
+                        );
+                        echo $ksMsg . "\n";
+                        $auditLogger->log($botId, $userId, 'KILL_SWITCH_TRIPPED', $ksMsg, [
+                            'loss_usdt'  => $ks['loss_usdt'],
+                            'loss_pct'   => $ks['loss_pct'],
+                            'base_usdt'  => $ks['base_usdt'],
+                            'limit_usdt' => $ks['limit_usdt'],
+                            'until'      => $until,
+                        ]);
+                        $notifier->sendTelegramAlert($ksMsg);
+                    } elseif ($ks['tripped']) {
+                        echo "      🛡️ [RISK GUARD] Kill switch ACTIVE for user #{$userId} until " . gmdate('H:i', $ks['until']) . " UTC — new entries blocked.\n";
+                    }
+                } catch (\Throwable $e) {
+                    echo "      ⚠️ [RISK GUARD] Kill switch check failed: " . $e->getMessage() . "\n";
+                }
             }
             // ----------------------------------------------------------------
 
@@ -1044,6 +1100,8 @@ if (($state['current_holdings'] ?? 0) <= 0) {
                         $state['dca_current_step'] = 0;
                         $state['trade_start_timestamp'] = null;
                         unset($state['trailing_sl_watermark']);
+                        // RISK GUARD: start the per-bot cut-loss cooldown window.
+                        $state['cut_loss_at'] = time();
                         
                         if (!empty($botData['parent_id'])) {
                             echo "      🧹 Removing child bot due to Cut Loss.\n";
@@ -1237,7 +1295,8 @@ if (($state['current_holdings'] ?? 0) <= 0) {
 
                 // --- A3. CHECK GLOBAL DCA & CONDITIONAL DCA ---
                 $currentDcaStep = $state['dca_current_step'] ?? 0;
-                $maxDcaSteps = $config['dca']['max_steps'] ?? 0;
+                // RISK GUARD: AI mode requires finite, capped DCA steps.
+                $maxDcaSteps = $riskGuard->clampDcaSteps($aiCopilotMode, (int)($config['dca']['max_steps'] ?? 0));
 
                 if ($currentDcaStep < $maxDcaSteps && empty($state['dca_limit_order_id'])) {
                     
@@ -1258,6 +1317,13 @@ if (($state['current_holdings'] ?? 0) <= 0) {
                         $baseOrderAmount = $state['base_order_amount'] ?? 5.0;
                         $volumeScale = $config['dca']['volume_scale'] ?? 1.0;
                         $capitalToUse = $baseOrderAmount * pow($volumeScale, $currentDcaStep + 1);
+
+                        // RISK GUARD: per-coin exposure cap on DCA steps.
+                        $dcaGate = $riskGuard->checkDcaHeadroom($userId, $symbol, (float)$capitalToUse, $agentSettingsCache[$userId] ?? [], $priceOf);
+                        if (!$dcaGate['ok']) {
+                            echo "      🛡️ [RISK GUARD] DCA step " . ($currentDcaStep + 1) . " skipped: " . $dcaGate['reason'] . "\n";
+                            continue;
+                        }
                         
                         echo "      🕸️ Casting Limit DCA net Step " . ($currentDcaStep + 1) . " at price $" . round($targetPrice, 4) . " (in advance)...\n";
                         try {
@@ -1344,6 +1410,13 @@ if (($state['current_holdings'] ?? 0) <= 0) {
                                 
                                 $capitalToUse = $baseOrderAmount * pow($volumeScale, $currentDcaStep + 1);
                                 echo " -> Buying assets worth $" . round($capitalToUse, 2) . "...\n";
+
+                                // RISK GUARD: per-coin exposure cap on DCA steps.
+                                $dcaGate = $riskGuard->checkDcaHeadroom($userId, $symbol, (float)$capitalToUse, $agentSettingsCache[$userId] ?? [], $priceOf);
+                                if (!$dcaGate['ok']) {
+                                    echo "      🛡️ [RISK GUARD] DCA step " . ($currentDcaStep + 1) . " skipped: " . $dcaGate['reason'] . "\n";
+                                    continue;
+                                }
                                 
                                 try {
                                     $buyOrder = $orderManager->executeMarketBuy($symbol, $capitalToUse);
@@ -1404,6 +1477,13 @@ if (($state['current_holdings'] ?? 0) <= 0) {
             // ================================================================
             SITUATION_B_IDLE:
             {
+                // RISK GUARD: per-bot cooldown after a cut loss — no new entries.
+                $clCooldown = $riskGuard->cutLossCooldownRemainingSec($state);
+                if ($clCooldown > 0) {
+                    echo "      🧊 [RISK GUARD] Cut-loss cooldown active: " . (int)ceil($clCooldown / 60) . " min left. Skipping new entries.\n";
+                    continue;
+                }
+
                 // Quarantine the Base Order if Recovery is active
                 if ($userHasRecovery && !$isRecoveryBot) {
                     echo "      🛑 IDLE bot detected. Force-shutting this bot (Graceful Shutdown) because Recovery Mode is active.\n";
@@ -1712,7 +1792,30 @@ if (($state['current_holdings'] ?? 0) <= 0) {
 
                     // --- ORDER TYPE (STAGE 2) ---
                     $orderType = $config['base_order']['order_type'] ?? 'market';
-                    
+
+                    // --- RISK GUARD (Phase 1): final gate before ANY new base entry ---
+                    $entryGate = $riskGuard->checkNewEntry(
+                        $userId,
+                        (string)$scanSymbol,
+                        (float)$baseOrderAmount,
+                        $agentSettingsCache[$userId] ?? [],
+                        $priceOf,
+                        $hasPriceHub
+                    );
+                    $sanityGate = $riskGuard->sanityCheckOrder((float)$currentPrice, $priceOf((string)$scanSymbol), (float)$baseOrderAmount);
+                    if (!$entryGate['ok'] || !$sanityGate['ok']) {
+                        $blockReason = $entryGate['ok'] ? $sanityGate['reason'] : $entryGate['reason'];
+                        echo "      🛡️ [RISK GUARD] Entry BLOCKED for {$scanSymbol}: {$blockReason}\n";
+                        $auditLogger->log($botId, $userId, 'RISK_GUARD_BLOCK', "Entry blocked for {$scanSymbol}: {$blockReason}", [
+                            'symbol'     => $scanSymbol,
+                            'order_usdt' => $baseOrderAmount,
+                            'price'      => $currentPrice,
+                            'reason'     => $blockReason,
+                        ]);
+                        $repo->updateRuntimeState($botId, $state);
+                        continue;
+                    }
+
                     if ($orderType === 'limit') {
                         $buyOrder = $orderManager->executeLimitBuy($scanSymbol, $baseOrderAmount, $currentPrice);
                     } else {
