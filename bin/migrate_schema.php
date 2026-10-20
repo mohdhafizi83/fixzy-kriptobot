@@ -85,6 +85,11 @@ if (!function_exists('runKriptobotMigration')) {
         }
 
         // --- bots: agent management columns (required by Agent tools & ApprovalManager) ---
+        // agent_decisions.approved_at/applied_at were referenced by
+        // ApprovalManager since day one but never in the schema — the approval
+        // flow would die on its first UPDATE. Add them (idempotent).
+        addColumnIfMissing($conn, 'agent_decisions', 'approved_at', 'TEXT DEFAULT NULL', $quiet);
+        addColumnIfMissing($conn, 'agent_decisions', 'applied_at', 'TEXT DEFAULT NULL', $quiet);
         addColumnIfMissing($conn, 'bots', 'is_agent_managed', 'INTEGER NOT NULL DEFAULT 0', $quiet);
         addColumnIfMissing($conn, 'bots', 'agent_decision_id', 'INTEGER DEFAULT NULL', $quiet);
 

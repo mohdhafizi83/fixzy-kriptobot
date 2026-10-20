@@ -443,6 +443,16 @@ while (true) {
                     echo "      🧠 [ADVISOR] Bot #{$botId} keeping static params ({$adv['reason']}).\n";
                 }
             }
+            // --- AI COPILOT (Phase 4): L3 escalation state ------------------
+            // While an escalation is open the bot is PAUSED: no new entries and
+            // no DCA. TP/trailing/partial sells keep running (selling is the
+            // safe direction). Verdicts are executed below, in the holdings
+            // branch, where the exchange session and live price exist.
+            $aiEsc = is_array($state['ai_l3'] ?? null) ? $state['ai_l3'] : [];
+            $aiPaused = ($aiCopilotMode === 'advisor' || $aiCopilotMode === 'active') && !empty($aiEsc['paused']);
+            if ($aiPaused) {
+                echo "      ⏸️ [L3] Bot #{$botId} PAUSED (trigger: " . ($aiEsc['trigger'] ?? '?') . "). Entries and DCA frozen.\n";
+            }
             // ----------------------------------------------------------------
 
             // --- RISK GUARD (Phase 1): daily-loss kill switch, 1x per user --
@@ -582,6 +592,10 @@ while (true) {
                     continue; 
                 }
                 
+                if ($aiPaused) {
+                    echo "      ⏸️ [L3] Trailing buy fill skipped (escalation pause).\n";
+                    continue;
+                }
                 echo "      🎯 Trailing Buy triggered! Price bounced $deviation% off the low.\n";
                 $readyToBuySymbol = $trailingSymbol;
                 $readyToBuyPrice = $currentPrice;
@@ -663,7 +677,9 @@ while (true) {
                             // entry at market — kill switch / exposure may have
                             // changed between limit placement and fallback.
                             if ($remainingUsdt > 1.0) {
-                                $fbGate = $riskGuard->checkNewEntry(
+                                $fbGate = $aiPaused
+                                    ? ['ok' => false, 'reason' => 'L3 escalation pause']
+                                    : $riskGuard->checkNewEntry(
                                     $userId,
                                     (string)$symbol,
                                     (float)$remainingUsdt,
@@ -784,6 +800,133 @@ if (($state['current_holdings'] ?? 0) <= 0) {
                 $conn->executeStatement("DELETE FROM price_ticks WHERE id NOT IN (SELECT id FROM price_ticks ORDER BY id DESC LIMIT 250)");
                 
                 echo " -> Current PNL: {$state['live_pnl_percent']}% | Price: $$currentPrice | Avg Entry: $$entryPrice\n";
+
+                // --- AI COPILOT (Phase 4): L3 escalation execution + detection
+                if ($aiCopilotMode === 'advisor' || $aiCopilotMode === 'active') {
+                    try {
+                        $l3Now = time();
+                        if ($aiPaused && !empty($aiEsc['decision_id'])
+                            && !(isset($aiEsc['reask_at']) && (int)$aiEsc['reask_at'] > $l3Now)) {
+                            // A resolved verdict (AI auto, human approve/reject)
+                            // is executed here; the AI loop only writes verdicts.
+                            $l3Row = $conn->fetchAssociative(
+                                "SELECT * FROM agent_decisions WHERE id = ? AND bot_id = ? AND decision_type = 'ai_escalation'",
+                                [(int)$aiEsc['decision_id'], $botId]
+                            );
+                            if (is_array($l3Row) && in_array($l3Row['status'] ?? '', ['approved', 'auto_approved', 'rejected'], true)) {
+                                foreach (['proposed_config', 'market_snapshot'] as $l3k) {
+                                    $l3Row[$l3k] = json_decode((string)($l3Row[$l3k] ?? ''), true) ?: [];
+                                }
+                                $l3res = \Fixzy\Kriptobot\Intelligence\AiCopilot\EscalationExecutor::execute(
+                                    $conn,
+                                    $l3Row,
+                                    $botId,
+                                    function (string $l3a) use ($orderManager, $symbol, $state, $currentPrice, $pnlPercentage, $auditLogger, $botId, $userId, $notifier): array {
+                                        try {
+                                            $orderManager->executeMarketSell($symbol, (float)$state['current_holdings']);
+                                            $notifier->sendTelegramAlert("✂️ <b>L3 CUT EXECUTED</b>\nPair: $symbol\nAll holdings sold by escalation verdict.\nPNL: $pnlPercentage%");
+                                            $auditLogger->logSell($botId, $userId, 'AI_ESCALATION_CUT', [
+                                                'symbol'      => $symbol,
+                                                'sell_price'  => $currentPrice,
+                                                'coin_sold'   => $state['current_holdings'],
+                                                'pnl_percent' => $pnlPercentage,
+                                                'usdt_value'  => $currentPrice * (float)$state['current_holdings'],
+                                                'reason'      => 'L3 escalation cut verdict',
+                                                'status'      => 'SUCCESS',
+                                            ]);
+                                            return ['ok' => true, 'message' => 'sold'];
+                                        } catch (Throwable $l3e) {
+                                            return ['ok' => false, 'message' => $l3e->getMessage()];
+                                        }
+                                    },
+                                    $l3Now,
+                                    $aiEsc
+                                );
+                                echo "      ⚖️ [L3] Bot #{$botId} verdict: " . ($l3res['action'] ?: '-') . " — " . $l3res['message'] . "\n";
+                                if ($l3res['executed']) {
+                                    $auditLogger->log($botId, $userId, 'AI_ESCALATION_EXECUTED', (string)$l3res['message'], [
+                                        'decision_id' => (int)$l3Row['id'],
+                                        'action'      => $l3res['action'],
+                                        'status'      => $l3Row['status'],
+                                    ]);
+                                    // Sync the executor's targeted write back
+                                    // into the in-memory state for this tick.
+                                    $l3Fresh = json_decode((string)$conn->fetchOne(
+                                        "SELECT json_extract(runtime_state, '$.ai_l3') FROM bots WHERE id = ?",
+                                        [$botId]
+                                    ), true);
+                                    $state['ai_l3'] = is_array($l3Fresh) ? $l3Fresh : [];
+                                    $aiEsc = $state['ai_l3'];
+                                    $aiPaused = !empty($aiEsc['paused']);
+                                    if ($l3res['action'] === 'cut') {
+                                        // Position is gone: reset like every other
+                                        // full-sell path, then move to next bot.
+                                        $state['status'] = 'IDLE';
+                                        $state['current_holdings'] = 0.0;
+                                        $state['average_entry_price'] = 0.0;
+                                        $state['dca_current_step'] = 0;
+                                        $state['trade_start_timestamp'] = null;
+                                        $repo->updateRuntimeState($botId, $state);
+                                        continue;
+                                    }
+                                }
+                            }
+                        }
+                        if (!$aiPaused) {
+                            $l3Trig = \Fixzy\Kriptobot\Intelligence\AiCopilot\Escalation::detect([
+                                'mode'         => $aiCopilotMode,
+                                'state'        => $state,
+                                'config'       => $config,
+                                'esc'          => $aiCopilot['escalation'],
+                                'now'          => $l3Now,
+                                'price'        => (float)$currentPrice,
+                                'pnl'          => (float)$pnlPercentage,
+                                'price_window' => \Fixzy\Kriptobot\Intelligence\AiCopilot\Escalation::windowPrice(
+                                    $conn, (int)$botId, (int)$aiCopilot['escalation']['flash_move_window_min']
+                                ),
+                                'cache_age'    => \Fixzy\Kriptobot\Intelligence\AiCopilot\Escalation::cacheAge(
+                                    is_array($state['ai_copilot_cache'] ?? null) ? $state['ai_copilot_cache'] : null, $l3Now
+                                ),
+                                'ttl'          => (int)$aiCopilot['cache_ttl_seconds'],
+                            ]);
+                            if ($l3Trig !== null) {
+                                $l3DecisionId = \Fixzy\Kriptobot\Intelligence\AiCopilot\Escalation::openDecision(
+                                    $conn, (int)$botId, (int)$userId, $l3Trig, (string)$symbol
+                                );
+                                $state['ai_l3'] = [
+                                    'paused'      => 1,
+                                    'trigger'     => $l3Trig['trigger'],
+                                    'decision_id' => $l3DecisionId,
+                                    'since'       => $l3Now,
+                                    'detail'      => $l3Trig['detail'],
+                                ];
+                                $aiEsc = $state['ai_l3'];
+                                $aiPaused = true;
+                                $repo->updateRuntimeState($botId, $state);
+                                $auditLogger->log($botId, $userId, 'AI_ESCALATION_OPENED', sprintf(
+                                    'L3 escalation opened (%s): bot paused, %s',
+                                    $l3Trig['trigger'],
+                                    $l3Trig['human_only'] ? 'awaiting human' : 'AI question queued'
+                                ), $l3Trig['detail'] + ['decision_id' => $l3DecisionId]);
+                                $notifier->sendTelegramAlert(sprintf(
+                                    "⚠️ <b>L3 ESCALATION — BOT PAUSED</b>\nPair: %s\nTrigger: %s\nPnL: %s%% | Price: $%s\nDecision #%d: %s",
+                                    $symbol,
+                                    $l3Trig['trigger'],
+                                    round((float)$pnlPercentage, 2),
+                                    round((float)$currentPrice, 6),
+                                    $l3DecisionId,
+                                    $l3Trig['human_only'] ? 'your approval is required' : 'AI is being asked'
+                                ));
+                                echo "      ⚠️ [L3] Bot #{$botId} PAUSED — trigger: {$l3Trig['trigger']} (decision #$l3DecisionId)\n";
+                            }
+                        }
+                    } catch (Throwable $l3e) {
+                        // Escalation must never kill the tick; fail-safe is
+                        // simply "no escalation this tick".
+                        echo "      ⚠️ [L3] Bot #{$botId} escalation check failed: " . $l3e->getMessage() . "\n";
+                    }
+                }
+                // ----------------------------------------------------------------
 
                                 // --- MINIMUM PROFIT GUARD SETUP (LEVEL 3) ---
                 $isMinGuardEnabled = $config['risk_management']['min_guard_enabled'] ?? false;
@@ -1390,7 +1533,9 @@ if (($state['current_holdings'] ?? 0) <= 0) {
                         $capitalToUse = $baseOrderAmount * pow($volumeScale, $currentDcaStep + 1);
 
                         // RISK GUARD: per-coin exposure cap on DCA steps.
-                        $dcaGate = $riskGuard->checkDcaHeadroom($userId, $symbol, (float)$capitalToUse, $agentSettingsCache[$userId] ?? [], $priceOf);
+                        $dcaGate = $aiPaused
+                            ? ['ok' => false, 'reason' => 'L3 escalation pause']
+                            : $riskGuard->checkDcaHeadroom($userId, $symbol, (float)$capitalToUse, $agentSettingsCache[$userId] ?? [], $priceOf);
                         if (!$dcaGate['ok']) {
                             echo "      🛡️ [RISK GUARD] DCA step " . ($currentDcaStep + 1) . " skipped: " . $dcaGate['reason'] . "\n";
                             $repo->updateRuntimeState($botId, $state); // persist pre-gate mutations (trailing watermark)
@@ -1484,7 +1629,9 @@ if (($state['current_holdings'] ?? 0) <= 0) {
                                 echo " -> Buying assets worth $" . round($capitalToUse, 2) . "...\n";
 
                                 // RISK GUARD: per-coin exposure cap on DCA steps.
-                                $dcaGate = $riskGuard->checkDcaHeadroom($userId, $symbol, (float)$capitalToUse, $agentSettingsCache[$userId] ?? [], $priceOf);
+                                $dcaGate = $aiPaused
+                            ? ['ok' => false, 'reason' => 'L3 escalation pause']
+                            : $riskGuard->checkDcaHeadroom($userId, $symbol, (float)$capitalToUse, $agentSettingsCache[$userId] ?? [], $priceOf);
                                 if (!$dcaGate['ok']) {
                                     echo "      🛡️ [RISK GUARD] DCA step " . ($currentDcaStep + 1) . " skipped: " . $dcaGate['reason'] . "\n";
                                     $repo->updateRuntimeState($botId, $state); // persist pre-gate mutations (trailing watermark)
@@ -1867,7 +2014,9 @@ if (($state['current_holdings'] ?? 0) <= 0) {
                     $orderType = $config['base_order']['order_type'] ?? 'market';
 
                     // --- RISK GUARD (Phase 1): final gate before ANY new base entry ---
-                    $entryGate = $riskGuard->checkNewEntry(
+                    $entryGate = $aiPaused
+                        ? ['ok' => false, 'reason' => 'L3 escalation pause']
+                        : $riskGuard->checkNewEntry(
                         $userId,
                         (string)$scanSymbol,
                         (float)$baseOrderAmount,

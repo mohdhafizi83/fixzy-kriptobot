@@ -170,6 +170,18 @@ class ApprovalManager
      */
     public function applyDecision(array $decision): bool
     {
+        // L3 escalations are NOT config changes: the daemon (which owns the
+        // exchange session) executes the hold/wait/cut verdict. Normalise the
+        // status to 'approved' so the daemon picks it up on its next tick —
+        // applying one as a bot-config update would corrupt the configuration.
+        if (($decision['decision_type'] ?? '') === 'ai_escalation') {
+            $this->db->update('agent_decisions', [
+                'status'      => 'approved',
+                'approved_at' => date('Y-m-d H:i:s'),
+            ], ['id' => $decision['id']]);
+            return true;
+        }
+
         $config = $decision['final_config'] ?? $decision['proposed_config'] ?? [];
 
         if (!$config) return false;

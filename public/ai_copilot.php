@@ -30,6 +30,7 @@ $esc = static fn($s) => htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8');
 $agentOn = (bool)($db->fetchOne('SELECT agent_enabled FROM agent_settings WHERE user_id = ?', [$userId]) ?: 0);
 $aiFeatureOn = ($db->fetchOne("SELECT status FROM feature_status WHERE feature_key = 'ai'") ?: 'disabled') === 'enabled';
 
+
 $bots = $db->fetchAllAssociative(
     'SELECT id, coin_pair, runtime_state, configuration FROM bots WHERE user_id = ? ORDER BY id',
     [$userId]
@@ -56,6 +57,18 @@ foreach ($botRows as $r) {
     if ($r['id'] === $selectedId) {
         $selected = $r;
     }
+}
+
+// Phase 4: L3 escalation audit trail for the selected bot.
+$l3Rows = [];
+if ($selected !== null) {
+    $l3Rows = $db->fetchAllAssociative(
+        "SELECT id, status, justification, market_snapshot, proposed_config, created_at, approved_at, applied_at
+         FROM agent_decisions
+         WHERE decision_type = 'ai_escalation' AND bot_id = ?
+         ORDER BY id DESC LIMIT 10",
+        [$selectedId]
+    );
 }
 
 $decisions = [];
@@ -214,6 +227,29 @@ $aiConfigured = $aiCfg['api_key'] !== '';
                 </span>
             <?php endif; ?>
         </div>
+
+        <?php if ($selected !== null && $l3Rows !== []): ?>
+        <div class="card">
+            <h3 class="font-bold mb-2">L3 escalations (last <?= count($l3Rows) ?>)</h3>
+            <table class="w-full text-sm">
+                <tr class="text-left muted"><th>#</th><th>trigger</th><th>status</th><th>verdict</th><th>opened</th></tr>
+                <?php foreach ($l3Rows as $l3):
+                    $l3Snap = json_decode((string)$l3['market_snapshot'], true) ?: [];
+                    $l3Verd = json_decode((string)$l3['proposed_config'], true) ?: [];
+                    $l3Col = in_array($l3['status'], ['pending_ai', 'pending_approval'], true) ? '#b45309'
+                        : (in_array($l3['status'], ['rejected'], true) ? '#b91c1c' : '#047857'); ?>
+                <tr class="border-t">
+                    <td><?= (int)$l3['id'] ?></td>
+                    <td><?= $esc($l3Snap['trigger'] ?? '?') ?></td>
+                    <td><b style="color: <?= $l3Col ?>"><?= $esc($l3['status']) ?></b></td>
+                    <td><?= $l3Verd !== [] ? $esc((string)($l3Verd['action'] ?? '?')) . ' (conf ' . $esc((string)($l3Verd['confidence'] ?? '?')) . ')' : '<span class="muted">—</span>' ?></td>
+                    <td class="muted"><?= $esc($l3['created_at']) ?></td>
+                </tr>
+                <?php endforeach; ?>
+            </table>
+            <p class="muted text-xs mt-1">Pending approvals are actioned from the Agent page (approve = execute AI verdict, reject = resume trading).</p>
+        </div>
+        <?php endif; ?>
 
         <?php if ($selected !== null && $decisions === []): ?>
             <div class="card">No L1 decisions recorded yet for this bot.

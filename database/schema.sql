@@ -134,6 +134,8 @@ CREATE TABLE agent_decisions (
     status TEXT DEFAULT 'pending_approval',
     approved_config TEXT,
     approved_by TEXT DEFAULT 'user',
+    approved_at TEXT DEFAULT NULL,
+    applied_at TEXT DEFAULT NULL,
     created_at TEXT DEFAULT CURRENT_TIMESTAMP,
     updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
