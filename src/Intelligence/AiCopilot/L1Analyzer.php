@@ -100,7 +100,8 @@ class L1Analyzer
             return ['ok' => false, 'stage' => 'llm', 'errors' => ['LLM unreachable: ' . $e->getMessage()]];
         }
 
-        $body = json_decode((string)$response->getBody()->getContents(), true);
+        // Cap the read: a hostile/compromised endpoint must not OOM the loop.
+        $body = json_decode($response->getBody()->read(65536), true);
         $reply = (string)($body['choices'][0]['message']['content'] ?? '');
         return self::parseAndValidate($reply);
     }

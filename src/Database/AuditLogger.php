@@ -43,7 +43,7 @@ class AuditLogger
                 'user_id'      => $userId,
                 'event_type'   => $eventType,
                 'event_summary' => $summary,
-                'context_data' => json_encode($contextData),
+                'context_data' => (string)json_encode($contextData, JSON_INVALID_UTF8_SUBSTITUTE),
                 'created_at'   => date('Y-m-d H:i:s'),
             ]);
 

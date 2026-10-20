@@ -81,10 +81,12 @@ if ($selected !== null) {
 
 // Bucket actions/outcomes into decision windows (decision.created_at -> next decision).
 $buckets = [];
+// $decisions is newest-first: the window for decision i runs from its own
+// timestamp until the NEXT NEWER decision (index i-1), or now for i=0.
 foreach ($decisions as $i => $d) {
     $start = strtotime((string)$d['created_at']);
-    $end = $i + 1 < count($decisions) ? strtotime((string)$decisions[$i + 1]['created_at']) : time();
-    $buckets[(int)$d['id']] = ['start' => $start, 'end' => $end, 'acts' => [], 'pnl' => 0.0];
+    $end = $i === 0 ? time() : strtotime((string)$decisions[$i - 1]['created_at']);
+    $buckets[(int)$d['id']] = ['start' => $start, 'end' => max($start, $end), 'acts' => [], 'pnl' => 0.0];
 }
 foreach ($actions as $a) {
     $t = strtotime((string)$a['created_at']);

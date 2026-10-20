@@ -104,6 +104,19 @@ class L1ValidatorTest extends TestCase
         $this->assertSame('schema', $schemaFail['stage']);
     }
 
+    public function testStrictIntegerAndArrayGuards(): void
+    {
+        $frac = $this->valid();
+        $frac['params']['max_dca_steps'] = 5.9;
+        $this->assertFalse(L1Validator::validate($frac)['ok'], 'fractional steps must be rejected');
+
+        $arrEnum = $this->valid();
+        $arrEnum['regime'] = ['trending_up'];
+        $arrEnum['bias'] = ['bullish'];
+        $r = L1Validator::validate($arrEnum);
+        $this->assertFalse($r['ok']); // arrays rejected without warnings
+    }
+
     public function testReasonIsTruncated(): void
     {
         $payload = $this->valid();

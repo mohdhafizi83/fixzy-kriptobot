@@ -230,7 +230,7 @@ class DataPackBuilder
             'tf' => [],
         ];
         foreach (self::TIMEFRAMES as $tf) {
-            if (!empty($tfCandles[$tf])) {
+            if (!empty($tfCandles[$tf]) && is_array($tfCandles[$tf])) {
                 $pack['tf'][$tf] = self::tfFeatures($tfCandles[$tf], $tf);
             }
         }
@@ -258,11 +258,14 @@ class DataPackBuilder
 
     public static function tfMinutes(string $tf): float
     {
-        return match (true) {
-            str_ends_with($tf, 'm') => (float)substr($tf, 0, -1),
-            str_ends_with($tf, 'h') => (float)substr($tf, 0, -1) * 60,
-            str_ends_with($tf, 'd') => (float)substr($tf, 0, -1) * 1440,
-            default => 60.0,
-        };
+        $num = 0.0;
+        if (preg_match('/^([0-9]+)([mhd])$/', $tf, $m)) {
+            $num = match ($m[2]) {
+                'm' => (float)$m[1],
+                'h' => (float)$m[1] * 60,
+                'd' => (float)$m[1] * 1440,
+            };
+        }
+        return $num > 0 ? $num : 60.0;
     }
 }

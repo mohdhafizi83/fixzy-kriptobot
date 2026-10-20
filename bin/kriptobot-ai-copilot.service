@@ -4,6 +4,7 @@ After=network-online.target kriptobot-daemon.service
 
 [Service]
 Type=oneshot
+TimeoutStartSec=600
 User=fizi
 WorkingDirectory=/home/fizi/projects/fixzy-kriptobot
 ExecStart=/home/fizi/projects/fixzy-kriptobot/bin/php_sqlite.sh /home/fizi/projects/fixzy-kriptobot/bin/ai_copilot_loop.php --once

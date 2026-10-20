@@ -95,23 +95,29 @@ $runOnce = static function () use ($onlyBot, $candlesPerTf): void {
         copilotEcho('AI Copilot L1: AI_API_KEY/AI_BASE_URL/AI_MODEL not set — nothing to do.');
         return;
     }
-    $conn = Database::getConnection();
-    $features = new FeatureStatusService($conn);
-    if (!$features->isEnabled('ai')) {
-        copilotEcho('AI Copilot L1: AI feature disabled in FeatureStatus — nothing to do.');
+    try {
+        $conn = Database::getConnection();
+        $features = new FeatureStatusService($conn);
+        if (!$features->isEnabled('ai')) {
+            copilotEcho('AI Copilot L1: AI feature disabled in FeatureStatus — nothing to do.');
+            return;
+        }
+
+        $auditLogger = new AuditLogger($conn);
+        $agentSettingsService = new AgentSettingsService($conn);
+        $botSql = "SELECT id, user_id, coin_pair, runtime_state, configuration FROM bots WHERE status = 1";
+        $botParams = [];
+        if ($onlyBot !== null) {
+            $botSql .= " AND id = ?";
+            $botParams[] = $onlyBot;
+        }
+        $stmt = $conn->executeQuery($botSql, $botParams);
+        $bots = $stmt->fetchAllAssociative();
+    } catch (Throwable $e) {
+        // Broken schema/DB: exit cleanly; the trading daemon is unaffected.
+        copilotEcho('AI Copilot L1: prologue failed — ' . $e->getMessage());
         return;
     }
-
-    $auditLogger = new AuditLogger($conn);
-    $agentSettingsService = new AgentSettingsService($conn);
-    $botSql = "SELECT id, user_id, coin_pair, runtime_state, configuration FROM bots WHERE status = 1";
-    $botParams = [];
-    if ($onlyBot !== null) {
-        $botSql .= " AND id = ?";
-        $botParams[] = $onlyBot;
-    }
-    $stmt = $conn->executeQuery($botSql, $botParams);
-    $bots = $stmt->fetchAllAssociative();
 
     $fng = fetchFearGreed($conn);
     $agentCache = [];
@@ -258,7 +264,10 @@ $runOnce = static function () use ($onlyBot, $candlesPerTf): void {
                 // daemon state write during the (slow) LLM call is never
                 // clobbered — json_set applies to the CURRENT row value.
                 $conn->executeStatement(
-                    "UPDATE bots SET runtime_state = json_set(COALESCE(NULLIF(runtime_state, ''), '{}'), '$.ai_copilot_cache', json(?)) WHERE id = ?",
+                    "UPDATE bots SET runtime_state = json_set(
+                        CASE WHEN json_valid(runtime_state) AND json_type(runtime_state) = 'object'
+                             THEN runtime_state ELSE '{}' END,
+                        '$.ai_copilot_cache', json(?)) WHERE id = ?",
                     [(string)json_encode($state['ai_copilot_cache']), $botId]
                 );
                 $auditLogger->log($botId, $userId, 'AI_L1_DECISION', sprintf(
@@ -285,10 +294,26 @@ $runOnce = static function () use ($onlyBot, $candlesPerTf): void {
             } else {
                 // fail-safe: previous cache stays in place; daemon untouched.
                 $errKey = 'ai_copilot_err_logged_' . $botId . '_' . ($result['stage'] ?? 'x');
-                if (!function_exists('apcu_fetch') || apcu_fetch($errKey) === false) {
-                    if (function_exists('apcu_store')) {
+                $throttled = false;
+                if (function_exists('apcu_fetch')) {
+                    $throttled = apcu_fetch($errKey) !== false;
+                    if (!$throttled) {
                         apcu_store($errKey, 1, 3600);
                     }
+                } else {
+                    // CLI without APCu: fall back to an app_settings timestamp.
+                    $tsKey = 'ai_copilot.err_ts_' . $botId . '_' . ($result['stage'] ?? 'x');
+                    $last = (int)($conn->fetchOne("SELECT value FROM app_settings WHERE setting_key = ?", [$tsKey]) ?: 0);
+                    $throttled = (time() - $last) < 3600;
+                    if (!$throttled) {
+                        $conn->executeStatement(
+                            "INSERT INTO app_settings (setting_key, value, encrypted, updated_at) VALUES (?, ?, 0, ?)
+                             ON CONFLICT(setting_key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at",
+                            [$tsKey, (string)time(), date('Y-m-d H:i:s')]
+                        );
+                    }
+                }
+                if (!$throttled) {
                     $auditLogger->log($botId, $userId, 'AI_L1_ERROR', 'L1 failed (' . ($result['stage'] ?? '?') . '): ' . implode('; ', $result['errors'] ?? []), [
                         'stage' => $result['stage'] ?? 'unknown',
                         'errors' => array_map(

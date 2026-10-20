@@ -37,11 +37,11 @@ class L1Validator
             return ['ok' => false, 'errors' => ['output is not a JSON object'], 'decision' => []];
         }
 
-        $regime = strtolower(trim((string)($decoded['regime'] ?? '')));
+        $regime = is_string($decoded['regime'] ?? null) ? strtolower(trim($decoded['regime'])) : '';
         if (!in_array($regime, self::REGIMES, true)) {
             $errors[] = 'regime must be one of: ' . implode(', ', self::REGIMES);
         }
-        $bias = strtolower(trim((string)($decoded['bias'] ?? '')));
+        $bias = is_string($decoded['bias'] ?? null) ? strtolower(trim($decoded['bias'])) : '';
         if (!in_array($bias, self::BIASES, true)) {
             $errors[] = 'bias must be one of: ' . implode(', ', self::BIASES);
         }
@@ -66,14 +66,18 @@ class L1Validator
                 $errors[] = sprintf('params.%s must be within %s–%s', $name, rtrim(rtrim(number_format($lo, 1, '.', ''), '0'), '.'), rtrim(rtrim(number_format($hi, 1, '.', ''), '0'), '.'));
                 continue;
             }
+            if ($name === 'max_dca_steps' && (float)$v !== floor((float)$v)) {
+                $errors[] = 'params.max_dca_steps must be an integer';
+                continue;
+            }
             $params[$name] = $name === 'max_dca_steps' ? (int)$v : (float)$v;
         }
-        $aggr = strtolower(trim((string)($rawParams['entry_aggressiveness'] ?? '')));
+        $aggr = is_string($rawParams['entry_aggressiveness'] ?? null) ? strtolower(trim($rawParams['entry_aggressiveness'])) : '';
         if (!in_array($aggr, self::AGGRESSION, true)) {
             $errors[] = 'params.entry_aggressiveness must be one of: ' . implode(', ', self::AGGRESSION);
         }
 
-        $reason = trim((string)($decoded['reason'] ?? ''));
+        $reason = is_string($decoded['reason'] ?? null) ? trim($decoded['reason']) : '';
         if (mb_strlen($reason) > 500) {
             $reason = mb_substr($reason, 0, 500);
         }

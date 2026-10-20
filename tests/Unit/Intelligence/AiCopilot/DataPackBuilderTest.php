@@ -94,5 +94,16 @@ class DataPackBuilderTest extends TestCase
         $this->assertSame(5.0, DataPackBuilder::tfMinutes('5m'));
         $this->assertSame(60.0, DataPackBuilder::tfMinutes('1h'));
         $this->assertSame(2880.0, DataPackBuilder::tfMinutes('2d'));
+        // malformed/zero units fall back to 60 (no division by zero downstream)
+        $this->assertSame(60.0, DataPackBuilder::tfMinutes('m'));
+        $this->assertSame(60.0, DataPackBuilder::tfMinutes('0m'));
+        $this->assertSame(60.0, DataPackBuilder::tfMinutes('1w'));
+        $this->assertSame(60.0, DataPackBuilder::tfMinutes(''));
+    }
+
+    public function testBuildIgnoresNonArrayTfValues(): void
+    {
+        $pack = DataPackBuilder::build('X/USDT', ['1h' => 'garbage'], [], [], [], null, null, 0);
+        $this->assertArrayNotHasKey('1h', $pack['tf']);
     }
 }
