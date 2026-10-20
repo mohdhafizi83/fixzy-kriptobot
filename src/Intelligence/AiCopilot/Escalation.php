@@ -48,7 +48,7 @@ final class Escalation
     public static function detect(array $ctx): ?array
     {
         $mode = (string)($ctx['mode'] ?? 'off');
-        if ($mode !== 'advisor' && $mode !== 'active') {
+        if ($mode !== 'active') {
             return null;
         }
         $state = is_array($ctx['state'] ?? null) ? $ctx['state'] : [];

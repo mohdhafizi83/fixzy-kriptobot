@@ -54,6 +54,21 @@ class BotRepository
      */
     public function updateRuntimeState(int $botId, array $state): void
     {
+        // Audit-full #5: the AI loop / escalation executor write their keys
+        // (ai_copilot_cache, ai_l3) concurrently via json_set. A wholesale
+        // write built from a tick-start read must not resurrect stale AI
+        // state, so re-read and preserve those keys from the live row.
+        $live = $this->db->fetchOne('SELECT runtime_state FROM bots WHERE id = ?', [$botId]);
+        $liveArr = json_decode((string)$live, true);
+        if (is_array($liveArr)) {
+            foreach (['ai_copilot_cache', 'ai_l3'] as $aiKey) {
+                if (array_key_exists($aiKey, $liveArr)) {
+                    $state[$aiKey] = $liveArr[$aiKey];
+                } elseif (array_key_exists($aiKey, $state)) {
+                    unset($state[$aiKey]); // live row removed it: do not resurrect
+                }
+            }
+        }
         $this->db->update('bots', [
             'runtime_state' => json_encode($state),
         ], ['id' => $botId]);

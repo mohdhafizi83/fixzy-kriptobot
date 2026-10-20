@@ -53,15 +53,15 @@ class WebhookService
             return ['status' => 'ignored', 'message' => "Bot ID #{$botId} is disabled (OFF)."];
         }
 
-        $state = json_decode((string)$bot['runtime_state'], true) ?: [];
-        if ($type === 'tv_webhook') {
-            $state['latest_tv_signal'] = $signal;
-        } else {
-            $state['latest_external_signal'] = $signal;
-        }
+        $jsonKey = $type === 'tv_webhook' ? '$.latest_tv_signal' : '$.latest_external_signal';
+        // Targeted write: a wholesale state write here could erase a fresh
+        // ai_l3 pause or ai_copilot_cache written mid-tick by the AI loop.
         $this->db->executeStatement(
-            "UPDATE bots SET runtime_state = ? WHERE id = ?",
-            [json_encode($state), $botId]
+            "UPDATE bots SET runtime_state = json_set(
+                 CASE WHEN json_valid(runtime_state) AND json_type(runtime_state) = 'object'
+                      THEN runtime_state ELSE '{}' END,
+                 '{$jsonKey}', ?) WHERE id = ?",
+            [$signal, $botId]
         );
 
         return [

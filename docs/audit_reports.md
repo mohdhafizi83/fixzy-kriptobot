@@ -335,3 +335,58 @@ All other queries use `?` placeholders. **No SQL injection found.**
 - Daemon restarted under systemd: **active**, ticks running on testnet.
 
 **Phase 2 status: COMPLETE.**
+
+---
+
+# AI Copilot — Phases 0–4 Audit (2026-10-20)
+
+**Scope:** opt-in AI Copilot (trust ladder `off → shadow → advisor → active`),
+RiskGuard risk layer, L1 slow loop, advisor parameter injection, L3 escalation.
+**Protocol:** per-phase self-audit + independent subagent audit; then one
+cross-phase integration audit before release. All findings fixed and
+regression-tested (108 tests, PHPStan level 5 clean).
+
+## Per-phase audits (summary)
+
+| Phase | Key findings (all fixed) |
+|-------|--------------------------|
+| 0 — config & trust ladder | TypeError on corrupt `bots.configuration` JSON; empty trust level; corrupt stored section locked out saves (validate caller payload before merge); `agent_settings` table missing on upgrade (idempotent migration) |
+| 1 — RiskGuard | **C1 critical:** kill switch never tripped (`event_type='SELL'` vs queried types — now counts SELL + `sell_type` in context); TypeError on corrupt `runtime_state`; fallback market buy ungated; timezone consistency (local clock) |
+| 2 — shadow mode | lost-update race on `runtime_state` (atomic `json_set` + `json_valid` guard); inverted report windows; LLM response read capped at 64 KB; `JSON_INVALID_UTF8_SUBSTITUTE` on audit writes |
+| 3 — advisor mode | gate failed OPEN on degenerate backtest data (now fails closed); cache treated as trusted (apply() now re-range-checks every value); verdict hash ignored static baseline + TF; pnl7d double-counted PARTIAL_SELL (now cost-weighted realized USDT) |
+| 4 — active / L3 | **H1:** position closed while paused bricked the bot (auto-resolve); **H2:** resting DCA limit filled during pause (canceled on escalation open + cut); cut made idempotent via free-balance re-check; escalation pass moved before analyzer gates; l1_expired grace period; per-bot `price_ticks` retention; **schema fix:** `agent_decisions.approved_at/applied_at` were written since day one but never existed — approval flow would have died on its first UPDATE |
+
+## Cross-phase integration audit (pre-release)
+
+| # | Severity | Finding | Fix |
+|---|----------|---------|-----|
+| 1 | HIGH | Stale L3 verdict resurrection: trust downgrade left pause + open decision; days-old verdict executed on re-enable | Supersede on downgrade; verdicts older than 2 h superseded, never executed |
+| 2 | MED | Global `price_ticks` prune in the idle branch defeated per-bot retention (flash-move dead on multi-bot) | Both prunes now per-bot |
+| 3 | MED | Loop answered escalations for bots whose AI is now off/shadow/deleted | LEFT JOIN + effective-mode filter; non-authorized rows route to human |
+| 4 | MED | `WebhookService` wholesale state write could erase a fresh pause/cache | Targeted `json_set` |
+| 5 | MED | Daemon wholesale `updateRuntimeState` could resurrect stale AI keys | `BotRepository` re-reads and preserves `ai_copilot_cache` / `ai_l3` from the live row |
+| 6 | MED | `agent_decisions` / `audit_logs` never pruned | Daily retention pass (90-day) in the AI loop |
+| 7 | LOW | Docs said escalation is active-only; code ran it in advisor too | Code aligned: escalation is ACTIVE-only (advisor = params only) |
+| 8 | LOW | DCA cap applied in shadow mode (behaviour change vs pre-AI) | Clamp only in advisor/active; docs corrected |
+| 9 | LOW | Invalid UTF-8 L1 reason (<500 chars) broke that bot's L1 forever | Validator always truncates + forces valid UTF-8 |
+| 10 | LOW | L1 position snapshot read non-existent config keys | Reads `risk_management.target_profit` / `cut_loss_percent` |
+| 11 | LOW | Negative 7d PnL rendered `-$$5.00` | Fixed |
+| 12 | LOW | Base-order budget used unclamped `max_steps` | Uses the same clamp as execution |
+| 13 | INFO | Single stream `read()` could return a partial body | Capped loop-read in both LLM clients |
+
+## Verified SAFE (cross-phase)
+
+- Trust ladder: all daemon consumers use the effective mode (per-bot trust ∧
+  agent switch ∧ AI feature); shadow never gets injection/L3; off gets no LLM.
+- Config round-trip identical between web form and REST API; invariants
+  (`enabled` ↔ `trust_level`) hold; normalize never throws.
+- Security: report page session-authed and user-scoped (no IDOR), every echo
+  escaped; approval endpoints authed + CSRF + status-guarded; `ai_escalation`
+  can never be applied as a config change; parameterized SQL throughout; no
+  stack traces to UI.
+- Hostile LLM output: strict schema validation at every parse point, 64 KB
+  capped stream reads, fail-safe to HOLD / previous cache / static config.
+- Concurrency: all AI-state writers use targeted `json_set` with `json_valid`
+  guards; loop flock prevents timer overlap.
+
+**AI Copilot Phases 0–4 status: COMPLETE.**

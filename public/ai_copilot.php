@@ -223,7 +223,7 @@ $aiConfigured = $aiCfg['api_key'] !== '';
                     <?php else: ?>
                         No cached L1 decision yet for this bot.
                     <?php endif; ?>
-                    · 7-day realized: <b style="color: <?= $pnl7d >= 0 ? '#047857' : '#b91c1c' ?>"><?= $pnl7d >= 0 ? '+' : '-$' ?>$<?= number_format(abs($pnl7d), 2) ?></b> <span class="muted">(<?= $pnl7dTrades ?> closed trades)</span>
+                    · 7-day realized: <b style="color: <?= $pnl7d >= 0 ? '#047857' : '#b91c1c' ?>"><?= $pnl7d >= 0 ? '+' : '-' ?>$<?= number_format(abs($pnl7d), 2) ?></b> <span class="muted">(<?= $pnl7dTrades ?> closed trades)</span>
                 </span>
             <?php endif; ?>
         </div>

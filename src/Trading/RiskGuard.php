@@ -339,7 +339,8 @@ class RiskGuard
         if ($configuredSteps < 0) {
             $configuredSteps = 0;
         }
-        if ($aiTrustMode !== 'off' && $configuredSteps > (int)$this->setting('ai_max_dca_steps_cap')) {
+        if (($aiTrustMode === 'advisor' || $aiTrustMode === 'active')
+            && $configuredSteps > (int)$this->setting('ai_max_dca_steps_cap')) {
             return (int)$this->setting('ai_max_dca_steps_cap');
         }
         return $configuredSteps;

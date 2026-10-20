@@ -102,7 +102,17 @@ class L1Analyzer
         }
 
         // Cap the read: a hostile/compromised endpoint must not OOM the loop.
-        $body = json_decode($response->getBody()->read(65536), true);
+        // Loop-read the stream (a single read() may return a partial body).
+        $stream = $response->getBody();
+        $raw = '';
+        while (!$stream->eof() && strlen($raw) <= 65536) {
+            $chunk = $stream->read(8192);
+            if ($chunk === '') {
+                break;
+            }
+            $raw .= $chunk;
+        }
+        $body = json_decode($raw, true);
         $reply = (string)($body['choices'][0]['message']['content'] ?? '');
         return self::parseAndValidate($reply);
     }

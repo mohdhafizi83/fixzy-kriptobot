@@ -56,14 +56,44 @@ $onlyBot = isset($args['bot']) ? (int)$args['bot'] : null;
  * key can never starve a paused bot; the pass itself routes 'AI unavailable'
  * and aged-out escalations to a human.
  */
+/**
+ * Keep the audit trail bounded: terminal decision rows and audit logs older
+ * than 90 days are pruned at most once per day (app_settings throttle).
+ */
+function processRetentionPass(): void
+{
+    try {
+        $conn = Database::getConnection();
+        $last = (int)($conn->fetchOne("SELECT value FROM app_settings WHERE setting_key = 'ai.retention_ts'") ?: 0);
+        if (time() - $last < 86400) {
+            return;
+        }
+        $conn->executeStatement("INSERT INTO app_settings (setting_key, value, encrypted, updated_at) VALUES ('ai.retention_ts', ?, 0, ?)
+                                 ON CONFLICT(setting_key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at",
+            [(string)time(), date('Y-m-d H:i:s')]);
+        $cut = date('Y-m-d H:i:s', time() - 90 * 86400);
+        $d = $conn->executeStatement("DELETE FROM agent_decisions WHERE created_at < ? AND status IN ('applied', 'rejected', 'approved')", [$cut]);
+        $a = $conn->executeStatement("DELETE FROM audit_logs WHERE created_at < ?", [$cut]);
+        if ($d > 0 || $a > 0) {
+            copilotEcho("retention: pruned {$d} decisions, {$a} audit rows (90d)");
+        }
+    } catch (Throwable $e) {
+        copilotEcho('retention pass failed: ' . $e->getMessage());
+    }
+}
+
 function processEscalationPass(): void
 {
     $conn = Database::getConnection();
     $auditLogger = new AuditLogger($conn);
     try {
         $l3Rows = $conn->fetchAllAssociative(
-            "SELECT d.id, d.user_id, d.bot_id, d.market_snapshot, d.backtest_results, d.created_at, b.coin_pair
-             FROM agent_decisions d JOIN bots b ON b.id = d.bot_id
+            "SELECT d.id, d.user_id, d.bot_id, d.market_snapshot, d.backtest_results, d.created_at,
+                    b.coin_pair,
+                    CASE WHEN json_valid(b.configuration) THEN COALESCE(json_extract(b.configuration, '$.ai_copilot.enabled'), 0) ELSE 0 END AS ai_on,
+                    CASE WHEN json_valid(b.configuration) THEN COALESCE(json_extract(b.configuration, '$.ai_copilot.trust_level'), 'off') ELSE 'off' END AS ai_trust,
+                    COALESCE((SELECT agent_enabled FROM agent_settings s WHERE s.user_id = b.user_id), 0) AS agent_on
+             FROM agent_decisions d LEFT JOIN bots b ON b.id = d.bot_id
              WHERE d.decision_type = 'ai_escalation' AND d.status = 'pending_ai'
              ORDER BY d.id ASC LIMIT 5"
         );
@@ -78,6 +108,22 @@ function processEscalationPass(): void
             $attempts = (int)($meta['l3_attempts'] ?? 0) + 1;
             $verdict = null;
             $agedOut = (time() - (strtotime((string)$l3['created_at']) ?: time())) > 7200;
+            // Audit-full #3: never spend an LLM call for a bot whose AI is now
+            // off/shadow/deleted — route straight to a human.
+            $botAllowsAi = $l3['coin_pair'] !== null
+                && !empty($l3['ai_on']) && !empty($l3['agent_on'])
+                && in_array((string)$l3['ai_trust'], ['advisor', 'active'], true);
+            if (!$botAllowsAi) {
+                $conn->executeStatement(
+                    "UPDATE agent_decisions
+                     SET status = 'pending_approval',
+                         justification = COALESCE(justification, '') || ' | bot no longer has AI authority — human decision required'
+                     WHERE id = ? AND status = 'pending_ai'",
+                    [(int)$l3['id']]
+                );
+                copilotEcho("escalation #{$l3['id']}: bot AI off/shadow/deleted — routed to human");
+                continue;
+            }
             if (!$agedOut && $l3Advisor !== null) {
                 $ask = $l3Advisor->ask((string)$l3['coin_pair'], $snapshot);
                 if (!empty($ask['ok']) && is_array($ask['verdict'] ?? null)) {
@@ -191,6 +237,7 @@ $runOnce = static function () use ($onlyBot, $candlesPerTf): void {
     // L3 escalations are answered even when the L1 analyzer/feature gate is
     // down — the pass itself routes 'AI unavailable' cases to a human.
     processEscalationPass();
+    processRetentionPass();
 
     $analyzer = L1Analyzer::fromConfig();
     if ($analyzer === null) {
@@ -305,8 +352,9 @@ $runOnce = static function () use ($onlyBot, $candlesPerTf): void {
                     'avg_price' => $avg,
                     'pnl_pct' => $avg > 0 ? ($last - $avg) / $avg * 100 : null,
                     'dca_step' => (int)($state['dca_current_step'] ?? 0),
-                    'dist_tp_pct' => isset($cfg['take_profit']['target_percent']) ? (float)$cfg['take_profit']['target_percent'] : null,
-                    'dist_sl_pct' => isset($cfg['stop_loss']['percent']) ? (float)$cfg['stop_loss']['percent'] : null,
+                    'dist_tp_pct' => isset($cfg['risk_management']['target_profit']) ? (float)$cfg['risk_management']['target_profit'] : null,
+                    'dist_sl_pct' => !empty($cfg['risk_management']['cut_loss_enabled']) && isset($cfg['risk_management']['cut_loss_percent'])
+                        ? (float)$cfg['risk_management']['cut_loss_percent'] : null,
                 ];
             }
 

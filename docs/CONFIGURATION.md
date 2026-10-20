@@ -63,6 +63,30 @@ bot waits. See the FAQ ("AI Market Analysis (OHLCV)") for examples.
 Use `php bin/kriptobot bot:create` (interactive) or the web UI to build
 these — hand-editing JSON is possible but not required.
 
+### `ai_copilot` (optional section, absent = fully OFF)
+
+The opt-in AI Copilot lives in `bots.configuration.ai_copilot`. A missing
+or invalid section always resolves to safe defaults (OFF) — old bots are
+unaffected. Every value is validated on save and re-clamped at read time.
+
+| Key | Default | Range | Meaning |
+|-----|---------|-------|---------|
+| `enabled` | `false` | bool | Master switch for this bot (invariant: `enabled` without a valid `trust_level` is forced off, and vice versa) |
+| `trust_level` | `off` | `off` / `shadow` / `advisor` / `active` | Authority ladder — see FAQ "AI Copilot" |
+| `decision_timeframe` | `1h` | `15m`/`1h`/`4h`/`1d` | Candle the slow AI loop decides on |
+| `min_confidence` | `0.6` | 0.0–1.0 | Advisor parameters need at least this LLM confidence |
+| `cache_ttl_seconds` | `3600` | 300–86400 | Max age of an L1 decision before it is treated as expired |
+| `escalation.flash_move_pct` | `3.0` | 0.5–20 | Active mode: pause when price moves ±this % within the window |
+| `escalation.flash_move_window_min` | `10` | 1–120 | Flash-move lookback window (minutes) |
+| `escalation.max_drawdown_pct` | `5.0` | 0.5–50 | Active mode: pause when position loss breaches this % |
+
+The AI never changes the rules engine — in `advisor`/`active` it may only
+re-source `dca.price_drop_trigger`, `dca.max_steps` (hard-capped at 8),
+`risk_management.target_profit` and `risk_management.trailing_tp_deviation`,
+and only after confidence, freshness and a fail-closed 30h backtest gate.
+Escalations (active mode) are audited as `agent_decisions` rows with
+`decision_type='ai_escalation'`.
+
 ## Agent Settings (per-user)
 
 Stored in `agent_settings`:

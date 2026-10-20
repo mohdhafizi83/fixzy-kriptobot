@@ -1127,6 +1127,132 @@ SessionGuard::requireWeb();
                     </div>
                 </div>
 
+            <!-- SECTION 11: AI COPILOT -->
+            <section class="space-y-6">
+                <div class="sticky top-16 z-40 bg-gray-100 py-4">
+                    <h2 class="text-xl font-bold text-indigo-900 border-l-4 border-indigo-500 pl-4 flex items-center">
+                        <span class="mr-2">🤖</span> AI Copilot (Shadow / Advisor / Active)
+                    </h2>
+                </div>
+
+                <div id="ai-copilot-overview" class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden transition-all duration-300" :class="{'ring-2 ring-pink-500 shadow-md': active === 60}">
+                    <button @click="active = active === 60 ? null : 60" class="w-full text-left px-6 py-5 font-bold text-gray-800 bg-gray-50 hover:bg-gray-100 focus:outline-none flex justify-between items-center transition-colors">
+                        <span class="flex items-center text-lg"><span class="text-pink-500 mr-3">🤖</span> Q: What is the AI Copilot and is it on by default?</span>
+                        <span x-show="active !== 60" class="text-gray-400">➕</span>
+                        <span x-show="active === 60" class="text-indigo-600">➖</span>
+                    </button>
+                    <div x-show="active === 60" x-collapse x-cloak class="px-6 py-5 text-gray-600 text-sm leading-relaxed border-t border-gray-100 bg-white">
+                        <p class="mb-4 text-base">The <strong>AI Copilot</strong> is an optional assistant that reads the market with an external LLM and gradually earns the right to tune your bot. It is <strong>OFF by default</strong> — with no AI keys or trust level set, the bot behaves exactly like the classic rule engine.</p>
+                        <p class="mb-4">It only switches on when <em>all</em> of these are true:</p>
+                        <ul class="list-disc pl-6 space-y-1 mb-4">
+                            <li>LLM access is configured (<code>AI_API_KEY</code>, <code>AI_BASE_URL</code>, <code>AI_MODEL</code> in <code>.env</code>) and the AI feature is enabled.</li>
+                            <li>The global <strong>agent switch</strong> is on (Agent settings).</li>
+                            <li>The bot's own <strong>trust level</strong> is set to shadow, advisor or active (bot editor → AI Copilot section).</li>
+                        </ul>
+                        <p>The AI runs in a separate slow loop (one pass per closed decision candle), <strong>never inside the 60-second trading loop</strong>. Everything it thinks and does is visible on the <strong>AI Copilot</strong> report page.</p>
+                        <p class="text-xs text-gray-500">Note: the separate <em>AI Market condition</em> (🧠 OHLCV buy/sell signals) is an older, independent feature — it follows the AI feature flag, not the Copilot trust level.</p>
+                    </div>
+                </div>
+                <div id="ai-copilot-trust" class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden transition-all duration-300" :class="{'ring-2 ring-pink-500 shadow-md': active === 61}">
+                    <button @click="active = active === 61 ? null : 61" class="w-full text-left px-6 py-5 font-bold text-gray-800 bg-gray-50 hover:bg-gray-100 focus:outline-none flex justify-between items-center transition-colors">
+                        <span class="flex items-center text-lg"><span class="text-pink-500 mr-3">🪜</span> Q: What do the trust levels (shadow / advisor / active) actually do?</span>
+                        <span x-show="active !== 61" class="text-gray-400">➕</span>
+                        <span x-show="active === 61" class="text-indigo-600">➖</span>
+                    </button>
+                    <div x-show="active === 61" x-collapse x-cloak class="px-6 py-5 text-gray-600 text-sm leading-relaxed border-t border-gray-100 bg-white">
+                        <p class="mb-4 text-base">The trust ladder is deliberately conservative — each level only adds authority after the level below has proven itself:</p>
+                        <ul class="list-disc pl-6 space-y-2 mb-4">
+                            <li><strong>off</strong> (default) — no LLM calls for this bot at all.</li>
+                            <li><strong>shadow</strong> — the AI writes an opinion (market regime + suggested DCA/TP/trailing parameters) on every closed decision candle, but the bot <em>ignores it</em>. Use the report page to compare "what the AI would do" vs "what the bot did" for a few weeks.</li>
+                            <li><strong>advisor</strong> — the AI's parameters are actually applied to the bot, but only after <em>every</em> gate passes: confidence threshold, decision freshness, and a deterministic 30-hour replay of your own DCA grid proving the new parameters are not worse than your static config (the gate <strong>fails closed</strong> — no evidence means no change). Values are hard range-checked; the rules engine itself is untouched, only the parameter source changes.</li>
+                            <li><strong>active</strong> — advisor plus <strong>L3 escalation</strong>: on dangerous events the bot auto-pauses and the AI is asked for a decision (see the escalation FAQ below).</li>
+                        </ul>
+                        <p>If anything is missing, stale or invalid at any level, the bot silently falls back to your static configuration. Fail-safe is always "do nothing new".</p>
+                    </div>
+                </div>
+                <div id="ai-copilot-riskguard" class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden transition-all duration-300" :class="{'ring-2 ring-pink-500 shadow-md': active === 62}">
+                    <button @click="active = active === 62 ? null : 62" class="w-full text-left px-6 py-5 font-bold text-gray-800 bg-gray-50 hover:bg-gray-100 focus:outline-none flex justify-between items-center transition-colors">
+                        <span class="flex items-center text-lg"><span class="text-pink-500 mr-3">🛡️</span> Q: What happens if the AI is wrong? Can it drain my account?</span>
+                        <span x-show="active !== 62" class="text-gray-400">➕</span>
+                        <span x-show="active === 62" class="text-indigo-600">➖</span>
+                    </button>
+                    <div x-show="active === 62" x-collapse x-cloak class="px-6 py-5 text-gray-600 text-sm leading-relaxed border-t border-gray-100 bg-white">
+                        <p class="mb-4 text-base">A hard risk layer (<strong>RiskGuard</strong>) sits under the AI and is <strong>always on — even when the AI is completely off</strong>. The AI can never widen these limits:</p>
+                        <ul class="list-disc pl-6 space-y-1 mb-4">
+                            <li><strong>Daily-loss kill switch</strong> — if realized net loss for the day exceeds 2% of your capital base, all new entries for that user are blocked for 24 hours (Telegram alert sent).</li>
+                            <li><strong>Exposure caps</strong> — new entries and DCA steps are checked against per-bot capital headroom before every order.</li>
+                            <li><strong>Cut-loss cooldown</strong> — 4 hours per bot after any cut loss, so no instant re-entry into a falling market.</li>
+                            <li><strong>DCA hard cap</strong> — whenever an AI trust mode (advisor/active) is set, DCA steps are clamped to a maximum of 8 regardless of what the AI or the form says.</li>
+                            <li><strong>Range checks</strong> — every AI-supplied parameter is re-validated against safe ranges at the moment it is used; a tampered or corrupt cache value is rejected and the static config is kept.</li>
+                        </ul>
+                        <p>The AI can only ever make the bot <em>more</em> cautious inside those rails; it cannot place orders the rules engine would not place, use leverage, or trade futures.</p>
+                    </div>
+                </div>
+                <div id="ai-copilot-escalation" class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden transition-all duration-300" :class="{'ring-2 ring-pink-500 shadow-md': active === 63}">
+                    <button @click="active = active === 63 ? null : 63" class="w-full text-left px-6 py-5 font-bold text-gray-800 bg-gray-50 hover:bg-gray-100 focus:outline-none flex justify-between items-center transition-colors">
+                        <span class="flex items-center text-lg"><span class="text-pink-500 mr-3">🚨</span> Q: What is an escalation (L3)? My bot says PAUSED — what does that mean?</span>
+                        <span x-show="active !== 63" class="text-gray-400">➕</span>
+                        <span x-show="active === 63" class="text-indigo-600">➖</span>
+                    </button>
+                    <div x-show="active === 63" x-collapse x-cloak class="px-6 py-5 text-gray-600 text-sm leading-relaxed border-t border-gray-100 bg-white">
+                        <p class="mb-4 text-base">In <strong>active</strong> trust level only, the daemon watches each open position with cheap deterministic triggers:</p>
+                        <ul class="list-disc pl-6 space-y-1 mb-4">
+                            <li><strong>Flash move</strong> — price moved ≥ 3% (configurable) within 10 minutes.</li>
+                            <li><strong>Drawdown</strong> — position loss breaches the configured limit (default 5%).</li>
+                            <li><strong>DCA exhausted</strong> — all DCA steps used, still underwater, price below average entry.</li>
+                            <li><strong>AI decision expired</strong> — the strategic loop has not delivered a fresh decision within its TTL (LLM down).</li>
+                        </ul>
+                        <p class="mb-4">When a trigger fires the bot is <strong>paused</strong>: no new entries and no DCA, but take-profit, trailing and partial-sell logic <em>keeps running</em> (selling stays available as the safe direction). The AI is then asked one focused question — <strong>hold</strong>, <strong>wait</strong> or <strong>cut</strong> — and the answer is executed or routed to you depending on your autonomy mode. Every escalation is fully logged (snapshot, question, answer, action) on the AI Copilot page.</p>
+                        <p>If the AI cannot answer (LLM down), the decision ages out to a human after two attempts. A position that closes while paused auto-resolves the escalation. Repeated triggers are rate-limited by a 30-minute cooldown.</p>
+                    </div>
+                </div>
+                <div id="ai-copilot-approvals" class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden transition-all duration-300" :class="{'ring-2 ring-pink-500 shadow-md': active === 64}">
+                    <button @click="active = active === 64 ? null : 64" class="w-full text-left px-6 py-5 font-bold text-gray-800 bg-gray-50 hover:bg-gray-100 focus:outline-none flex justify-between items-center transition-colors">
+                        <span class="flex items-center text-lg"><span class="text-pink-500 mr-3">✅</span> Q: Do I have to approve AI actions myself?</span>
+                        <span x-show="active !== 64" class="text-gray-400">➕</span>
+                        <span x-show="active === 64" class="text-indigo-600">➖</span>
+                    </button>
+                    <div x-show="active === 64" x-collapse x-cloak class="px-6 py-5 text-gray-600 text-sm leading-relaxed border-t border-gray-100 bg-white">
+                        <p class="mb-4 text-base">That is your choice, in <strong>Agent settings → autonomy mode</strong>:</p>
+                        <ul class="list-disc pl-6 space-y-2 mb-4">
+                            <li><strong>Approval required</strong> (default) — every escalation lands on the <strong>Agent page</strong> with the AI's recommendation and confidence attached. <em>Approve</em> executes it, <em>reject</em> resumes normal trading without selling. Nothing happens without you.</li>
+                            <li><strong>Full autonomy</strong> — the AI verdict is executed automatically by the daemon (still inside the RiskGuard rails above). A "cut" is a market sell of the position; a "wait" keeps the bot frozen and re-asks after 30 minutes.</li>
+                        </ul>
+                        <p>Escalation decisions can never be silently rewritten into bot-config changes — that path is explicitly blocked in code.</p>
+                    </div>
+                </div>
+                <div id="ai-copilot-cost" class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden transition-all duration-300" :class="{'ring-2 ring-pink-500 shadow-md': active === 65}">
+                    <button @click="active = active === 65 ? null : 65" class="w-full text-left px-6 py-5 font-bold text-gray-800 bg-gray-50 hover:bg-gray-100 focus:outline-none flex justify-between items-center transition-colors">
+                        <span class="flex items-center text-lg"><span class="text-pink-500 mr-3">💸</span> Q: How many LLM calls does this make? What does it cost?</span>
+                        <span x-show="active !== 65" class="text-gray-400">➕</span>
+                        <span x-show="active === 65" class="text-indigo-600">➖</span>
+                    </button>
+                    <div x-show="active === 65" x-collapse x-cloak class="px-6 py-5 text-gray-600 text-sm leading-relaxed border-t border-gray-100 bg-white">
+                        <p class="mb-4 text-base">Very few — the design deliberately keeps the LLM out of the hot path:</p>
+                        <ul class="list-disc pl-6 space-y-1 mb-4">
+                            <li><strong>One call per bot per closed decision candle</strong> (default timeframe 1h → at most ~24 calls per bot per day; 4h/1d are fewer).</li>
+                            <li><strong>One extra question per escalation</strong>, and only in active mode.</li>
+                            <li>Nothing at all in shadow-off bots, and nothing inside the 60-second tick.</li>
+                        </ul>
+                        <p>Calls go to any OpenAI-compatible endpoint you choose (<code>AI_BASE_URL</code>), so you can use a cheap model or a local one. If the endpoint is slow or down, the loop simply keeps the previous decision — trading is never blocked by AI latency.</p>
+                    </div>
+                </div>
+                <div id="ai-copilot-off" class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden transition-all duration-300" :class="{'ring-2 ring-pink-500 shadow-md': active === 66}">
+                    <button @click="active = active === 66 ? null : 66" class="w-full text-left px-6 py-5 font-bold text-gray-800 bg-gray-50 hover:bg-gray-100 focus:outline-none flex justify-between items-center transition-colors">
+                        <span class="flex items-center text-lg"><span class="text-pink-500 mr-3">🔌</span> Q: How do I turn the AI Copilot off again?</span>
+                        <span x-show="active !== 66" class="text-gray-400">➕</span>
+                        <span x-show="active === 66" class="text-indigo-600">➖</span>
+                    </button>
+                    <div x-show="active === 66" x-collapse x-cloak class="px-6 py-5 text-gray-600 text-sm leading-relaxed border-t border-gray-100 bg-white">
+                        <p class="mb-4 text-base">Any one of these is enough, and each is instant on the next tick:</p>
+                        <ul class="list-disc pl-6 space-y-1 mb-4">
+                            <li>Set the bot's trust level back to <strong>off</strong> (bot editor → AI Copilot).</li>
+                            <li>Switch the global <strong>agent</strong> off in Agent settings, or disable the AI feature.</li>
+                            <li>Remove the AI keys from <code>.env</code>.</li>
+                        </ul>
+                        <p>With the AI off, behaviour is byte-for-byte the classic rule engine. The only thing that stays on by design is <strong>RiskGuard</strong> (kill switch, exposure caps, cooldowns) — it protects capital regardless of AI state and is part of the core engine since Phase 1.</p>
+                    </div>
+                </div>
             </section>
 
         </div>
@@ -1145,7 +1271,8 @@ SessionGuard::requireWeb();
                 '#smart-recovery': 23, '#global-toggle': 24, '#global-blacklist': 25,
                 '#global-buy-filters': 26, '#global-sell-filters': 27, '#signal-logic': 30,
                 '#backtest-overview': 40, '#backtest-data': 41, '#backtest-limitations': 42, '#backtest-accuracy': 43,
-                '#ai-agent-overview': 50, '#ai-agent-autonomy': 51, '#ai-agent-telegram': 52, '#ai-agent-tools': 53, '#ai-agent-auto-optimize': 54, '#ai-agent-safety': 55
+                '#ai-agent-overview': 50, '#ai-agent-autonomy': 51, '#ai-agent-telegram': 52, '#ai-agent-tools': 53, '#ai-agent-auto-optimize': 54, '#ai-agent-safety': 55,
+                '#ai-copilot-overview': 60, '#ai-copilot-trust': 61, '#ai-copilot-riskguard': 62, '#ai-copilot-escalation': 63, '#ai-copilot-approvals': 64, '#ai-copilot-cost': 65, '#ai-copilot-off': 66
             };
             if (mapping[hash]) {
                 setTimeout(() => { document.querySelector('[x-data]').__x.$data.active = mapping[hash]; }, 100);

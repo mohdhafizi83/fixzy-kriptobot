@@ -44,6 +44,13 @@ subscriptions, no cloud lock-in, your keys never leave your machine.
   additional signal layer
 - **AI strategy agent** — reviews performance, proposes configuration
   changes, and requires human approval (full autonomy is opt-in)
+- **AI Copilot (opt-in, default OFF)** — a slow strategic loop that earns
+  authority through a trust ladder: `shadow` (AI writes opinions only),
+  `advisor` (AI-tuned DCA/TP/trailing parameters, gated by confidence,
+  freshness and a fail-closed 30h backtest replay), `active` (plus L3
+  escalation: on flash moves / drawdown / exhausted DCA the bot pauses
+  and the AI is asked to hold, wait or cut — auto-executed or routed to
+  you). Never in the 60-second hot path; every verdict is audited.
 - **Provider-agnostic** — any OpenAI-compatible endpoint works:
   DeepSeek, OpenRouter, Ollama, llama.cpp server, and more
 
@@ -54,6 +61,9 @@ subscriptions, no cloud lock-in, your keys never leave your machine.
   CryptoPanic) stays disabled until its credentials are provided **and**
   verified with a live call. Disabled features always show the reason.
   The exchange API is compulsory; everything else is optional.
+- **RiskGuard (always on, even with AI off)** — daily-loss kill switch
+  (2% of capital base blocks new entries for 24h), per-bot exposure
+  headroom checks, 4h cut-loss cooldown, hard DCA-step cap in AI modes
 - **Audit log** — every decision, trade, error, and AI verdict is
   recorded with full context
 - **Telegram alerts** — trade notifications, AI proposals, and feature
@@ -288,6 +298,16 @@ change anything afterwards, use the Web UI (**Settings → Environment**
 for testnet keys, **Settings → Integrations** for Telegram/AI/webhooks)
 or the CLI (`php bin/kriptobot setup` shows status; `password:reset`
 changes the password).
+
+**Is the AI Copilot on by default? Can the AI lose my money?**
+No and no. The AI Copilot is off until you configure AI keys, enable the
+agent switch, and set a bot's trust level above `off`. The hard risk
+layer (RiskGuard: kill switch, exposure caps, cut-loss cooldown) is
+always on regardless of AI state, the DCA-step cap applies whenever an
+AI trust mode is set, AI parameters are range-checked and
+must beat your static config in a fail-closed backtest gate before being
+used, and in `approval_required` mode every escalation waits for you.
+Full details in the web FAQ (**FAQ → AI Copilot**).
 
 **I skipped the testnet keys during setup. Where do I add them?**
 Log in → **Settings → Environment** → paste your API key and secret from

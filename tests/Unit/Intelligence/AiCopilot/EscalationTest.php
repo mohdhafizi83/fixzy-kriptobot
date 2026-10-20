@@ -38,9 +38,12 @@ final class EscalationTest extends TestCase
         $this->assertNull(Escalation::detect($this->ctx()));
     }
 
-    public function testShadowAndOffNeverTrigger(): void
+    public function testShadowAdvisorAndOffNeverTrigger(): void
     {
+        // L3 escalation is ACTIVE-only (audit-full #7): advisor tunes params
+        // but never pauses the bot.
         $this->assertNull(Escalation::detect($this->ctx(['mode' => 'shadow', 'pnl' => -9.0])));
+        $this->assertNull(Escalation::detect($this->ctx(['mode' => 'advisor', 'pnl' => -9.0])));
         $this->assertNull(Escalation::detect($this->ctx(['mode' => 'off', 'pnl' => -9.0])));
     }
 

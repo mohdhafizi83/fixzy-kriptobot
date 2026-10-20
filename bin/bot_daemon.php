@@ -449,7 +449,41 @@ while (true) {
             // safe direction). Verdicts are executed below, in the holdings
             // branch, where the exchange session and live price exist.
             $aiEsc = is_array($state['ai_l3'] ?? null) ? $state['ai_l3'] : [];
-            $aiPaused = ($aiCopilotMode === 'advisor' || $aiCopilotMode === 'active') && !empty($aiEsc['paused']);
+            $aiPaused = $aiCopilotMode === 'active' && !empty($aiEsc['paused']);
+            // Audit-full #1: trust downgraded (active -> advisor/shadow/off) while
+            // an escalation was open — supersede it instead of leaving a stale
+            // pause + orphan decision that could fire days later on re-enable.
+            if ($aiCopilotMode !== 'active' && !empty($aiEsc['paused'])) {
+                try {
+                    $l3DownId = (int)($aiEsc['decision_id'] ?? 0);
+                    if ($l3DownId > 0) {
+                        $conn->executeStatement(
+                            "UPDATE agent_decisions
+                             SET status = 'applied', applied_at = ?,
+                                 justification = COALESCE(justification, '') || ' | superseded: trust level downgraded below active'
+                             WHERE id = ? AND status IN ('pending_ai', 'pending_approval', 'approved', 'auto_approved')",
+                            [date('Y-m-d H:i:s'), $l3DownId]
+                        );
+                    }
+                    $conn->executeStatement(
+                        "UPDATE bots SET runtime_state = json_set(
+                             CASE WHEN json_valid(runtime_state) AND json_type(runtime_state) = 'object'
+                                  THEN runtime_state ELSE '{}' END,
+                             '$.ai_l3', json(?)) WHERE id = ?",
+                        [(string)json_encode(['paused' => 0, 'action' => 'superseded_trust_downgrade',
+                            'trigger' => (string)($aiEsc['trigger'] ?? ''), 'decision_id' => $l3DownId,
+                            'last_resolved_at' => time()]), $botId]
+                    );
+                    $state['ai_l3'] = ['paused' => 0, 'action' => 'superseded_trust_downgrade', 'last_resolved_at' => time()];
+                    $aiEsc = $state['ai_l3'];
+                    $auditLogger->log($botId, $userId, 'AI_ESCALATION_SUPERSEDED',
+                        'Escalation superseded: trust level no longer active; pause cleared and trading resumed.',
+                        ['decision_id' => $l3DownId, 'mode' => $aiCopilotMode]);
+                    echo "      ✅ [L3] Bot #{$botId} trust downgraded — open escalation superseded and resumed.\n";
+                } catch (Throwable $l3d) {
+                    echo "      ⚠️ [L3] Bot #{$botId} downgrade-supersede failed: " . $l3d->getMessage() . "\n";
+                }
+            }
             if ($aiPaused) {
                 echo "      ⏸️ [L3] Bot #{$botId} PAUSED (trigger: " . ($aiEsc['trigger'] ?? '?') . "). Entries and DCA frozen.\n";
             }
@@ -840,7 +874,7 @@ if (($state['current_holdings'] ?? 0) <= 0) {
                 echo " -> Current PNL: {$state['live_pnl_percent']}% | Price: $$currentPrice | Avg Entry: $$entryPrice\n";
 
                 // --- AI COPILOT (Phase 4): L3 escalation execution + detection
-                if ($aiCopilotMode === 'advisor' || $aiCopilotMode === 'active') {
+                if ($aiCopilotMode === 'active') {
                     try {
                         $l3Now = time();
                         if ($aiPaused && !empty($aiEsc['decision_id'])
@@ -852,6 +886,33 @@ if (($state['current_holdings'] ?? 0) <= 0) {
                                 [(int)$aiEsc['decision_id'], $botId]
                             );
                             if (is_array($l3Row) && in_array($l3Row['status'] ?? '', ['approved', 'auto_approved', 'rejected'], true)) {
+                                // Audit-full #1: never execute a stale verdict
+                                // (decision older than 2h = answered against a
+                                // market that no longer exists) — supersede it.
+                                $l3Age = $l3Now - (strtotime((string)($l3Row['created_at'] ?? '')) ?: $l3Now);
+                                if ($l3Age > 7200) {
+                                    $conn->executeStatement(
+                                        "UPDATE agent_decisions
+                                         SET status = 'applied', applied_at = ?,
+                                             justification = COALESCE(justification, '') || ' | superseded: verdict older than 2h'
+                                         WHERE id = ?",
+                                        [date('Y-m-d H:i:s'), (int)$l3Row['id']]
+                                    );
+                                    $conn->executeStatement(
+                                        "UPDATE bots SET runtime_state = json_set(runtime_state, '$.ai_l3', json(?))
+                                         WHERE id = ? AND json_valid(runtime_state) AND json_type(runtime_state) = 'object'",
+                                        [(string)json_encode(['paused' => 0, 'action' => 'superseded_stale',
+                                            'trigger' => (string)($aiEsc['trigger'] ?? ''), 'decision_id' => (int)$l3Row['id'],
+                                            'last_resolved_at' => $l3Now]), $botId]
+                                    );
+                                    $state['ai_l3'] = ['paused' => 0, 'action' => 'superseded_stale', 'last_resolved_at' => $l3Now];
+                                    $aiEsc = $state['ai_l3'];
+                                    $aiPaused = false;
+                                    echo "      ⏰ [L3] Bot #{$botId} stale verdict ({$l3Age}s old) superseded — not executed.\n";
+                                    $l3Row = null;
+                                }
+                            }
+                            if (is_array($l3Row ?? null)) {
                                 foreach (['proposed_config', 'market_snapshot'] as $l3k) {
                                     $l3Row[$l3k] = json_decode((string)($l3Row[$l3k] ?? ''), true) ?: [];
                                 }
@@ -1850,7 +1911,9 @@ if (($state['current_holdings'] ?? 0) <= 0) {
                         "INSERT INTO price_ticks (bot_id, price, pnl_percent, holdings) VALUES (?, ?, 0, 0)",
                         [$botId, $currentPrice]
                     );
-                    $conn->executeStatement("DELETE FROM price_ticks WHERE id NOT IN (SELECT id FROM price_ticks ORDER BY id DESC LIMIT 250)");
+                    // per-bot retention only (global prune made flash-move
+                    // windows unreachable on multi-bot setups — audit-full #2)
+                    $conn->executeStatement("DELETE FROM price_ticks WHERE bot_id = ? AND id NOT IN (SELECT id FROM price_ticks WHERE bot_id = ? ORDER BY id DESC LIMIT 250)", [$botId, $botId]);
                     echo "      -> Price fetched for technical calculation: $$currentPrice\n";
                     
                     if (!empty($requiredScanTimeframes)) {
@@ -2064,7 +2127,9 @@ if (($state['current_holdings'] ?? 0) <= 0) {
                     $state['total_deal_budget'] = $totalDealBudget;
                     
                     // --- STAGE 1.6: BASE ORDER CALCULATION (GEOMETRIC SERIES MATH) ---
-                    $maxDcaSteps = (int)($config['dca']['max_steps'] ?? 0);
+                    // Same clamp as execution (audit-full #12): budgeting with an
+                    // unclamped step count would under-deploy capital in AI modes.
+                    $maxDcaSteps = $riskGuard->clampDcaSteps($aiCopilotMode, (int)($config['dca']['max_steps'] ?? 0));
                     $volumeScale = (float)($config['dca']['volume_scale'] ?? 1.0);
                     
                     $multiplierSum = 1.0; 

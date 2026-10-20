@@ -78,8 +78,12 @@ class L1Validator
         }
 
         $reason = is_string($decoded['reason'] ?? null) ? trim($decoded['reason']) : '';
-        if (mb_strlen($reason) > 500) {
-            $reason = mb_substr($reason, 0, 500);
+        // Always truncate (mb_substr also drops broken trailing sequences) and
+        // force valid UTF-8: an invalid string here breaks json_encode of the
+        // runtime_state cache and would fail this bot's L1 pass forever.
+        $reason = mb_substr($reason, 0, 500);
+        if (!mb_check_encoding($reason, 'UTF-8')) {
+            $reason = mb_convert_encoding($reason, 'UTF-8', 'UTF-8');
         }
 
         if ($errors !== []) {
